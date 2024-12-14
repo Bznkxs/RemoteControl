@@ -35,11 +35,20 @@
 //     Log, TerminalCommandLogMessage
 // } = window.frontendAPI;
 
-import {TerminalCommandLogMessage, TerminalTextLogMessage, TextClass} from "./terminal_log_message.js";
-import {getMessageFromInputElement, getCommandFromInputElement} from "./get_message_from_element.js";
+import {getCommandFromInputElement, getMessageFromInputElement} from "./get_message_from_element.js";
 import {Log} from "./terminal_log.js";
 import {RemoteControlContext} from "./automaton/context.js";
 import {deserializeFunction} from "./serialize_deserialize.js";
+import {SimpleANSIParsingLog} from "./ansi_parsing_terminal_log.js";
+import {parseTerminalMessageText} from "./parse_terminal_ansi_message.js";
+import {TextClass} from "../shared/text_class.js";
+import {TerminalTextLogMessage} from "../shared/message.js";
+import {
+    maintainScrollToBottom, remindTabLabel,
+    toggleElementEnabled,
+    toggleElementVisibility,
+    updateElementInfoForScrollToBottom
+} from "./element_utils";
 
 console.log('👋 This message is being logged by "renderer.js", included via webpack');
 
@@ -66,14 +75,26 @@ const fileTabLabel = document.getElementById("file-tab-label");
 const loadFileButton = document.getElementById("load-file-button");
 const fileInput = document.getElementById("file-input");
 const fileContent = document.getElementById("file-content");
+const startFileButton = document.getElementById("start-file-button");
+const stopFileButton = document.getElementById("stop-file-button");
 
 // Definitions of constants
 
-const latestStdoutLog = new Log([], [stdoutContent]);
-const latestStderrLog = new Log([], [stderrContent]);
-const latestExitCodeLog = new Log([], [exitCode]);
+const latestStdoutLog = new Log([], [
+    // stdoutContent
+]);
+const latestStderrLog = new Log([], [
+    // stderrContent
+]);
+const latestExitCodeLog = new Log([], [
+    // exitCode
+]);
 const inputLog = new Log([], []);
 const log = new Log.MonitoringLog([latestStderrLog, latestStdoutLog, latestExitCodeLog, inputLog], [logContent]);
+new SimpleANSIParsingLog(latestStdoutLog);
+new SimpleANSIParsingLog(latestStderrLog);
+new SimpleANSIParsingLog(inputLog);
+new SimpleANSIParsingLog(log);
 
 // Definitions of global vars
 
@@ -83,69 +104,7 @@ let EOL = "";
 // Definitions of functions
 
 
-const clearText = (element) => {
-    element.innerHTML = "";
-};
 
-const isElementEnabled = (element) => {
-    // if element is a div, it will not have a disabled property. Look at the classList instead
-    if (element.disabled === undefined) {
-        return !element.classList.contains("disabled");
-    }
-    return !element.disabled;
-};
-
-const isElementVisible = (element) => {
-    return !(element.display === "none");
-}
-
-const toggleElementVisibility = (element, visible) => {
-    if (visible === undefined) {
-        toggleElementVisibility(element, !isElementVisible(element));
-    } else {
-        if (visible) {
-            if (element.makeVisible) {
-                element.makeVisible();
-            } else {
-                element.style.display = "";
-            }
-            element.makeVisible = undefined;
-        } else {
-            if (!element.makeVisible) {
-                const display = element.style.display;
-                element.makeVisible = () => {
-                    element.style.display = display;
-                }
-                element.style.display = "none";
-            } else {
-                element.style.display = "none";
-            }
-        }
-    }
-
-}
-
-const toggleElementEnabled = (element, enabled) => {
-    if (enabled === undefined) {
-        toggleElementEnabled(element, !isElementEnabled(element));
-    }
-    else {
-        if (enabled) {
-            if (isElementEnabled(element)) {
-                return;
-            }
-            element.classList.remove("disabled");
-            element.disabled = false;
-        } else {
-            if (!isElementEnabled(element)) {
-                return;
-            }
-            element.classList.add("disabled");
-            element.disabled = true
-        }
-        toggleElementVisibility(element, enabled);
-    }
-};
 
 const changeCommandMode = (mode, changeRadio=true) => {
     console.assert(mode === "default" || mode === "pty");
@@ -172,6 +131,7 @@ const getCommandMode = () => {
 }
 
 function changeEOL(newEOL, recursive=true) {
+    console.log("Changing EOL to: ", JSON.stringify(newEOL), new Error())
     EOL = newEOL;
     if (recursive) {
         eolInput.value = JSON.stringify(newEOL).replaceAll('"', '');
@@ -221,12 +181,24 @@ function sendInputMessage(inputLogMessage) {
     window.electronAPI.sendInput(inputLogMessage.text + EOL);
 }
 
-function createNewContentLog (arg, timeStamp) {
-    return new TerminalTextLogMessage({
-        text: arg,
+function createNewContentLog (name, arg, timeStamp) {
+    console.log("Script stdout: ", name, arg, timeStamp);
+    const {data, ansiOutputStream} = arg;
+    const message = new TerminalTextLogMessage({
+        text: data,
+        ansiOutputStream: ansiOutputStream,
         time: timeStamp,
         textClass: TextClass.CONTENT
     })
+    if (ansiOutputStream) {
+        message.ansiOutputStream = ansiOutputStream;
+        message.ansiText = parseTerminalMessageText(name, message);
+        message.rawText = message.text;
+        message.text = message.ansiText;
+    }
+
+
+    return message;
 }
 
 function logFileContent(content) {
@@ -249,8 +221,8 @@ function setRemoteControlSequence(commandSeqString, proxyContext) {
             console.log("Line of call: ", callerFunction, callerRow, callerColumn);
             // insert a <span> tag to highlight the row
             const lines = commandSeqString.split("\n");
-            const highlightedLine = `<span id="highlightedLine" style="background-color: yellow">${lines[callerRow-2]}</span>`;
-            lines[callerRow-2] = highlightedLine;
+            const highlightedLine = `<span id="highlightedLine" style="background-color: yellow">${lines[callerRow-3]}</span>`;
+            lines[callerRow-3] = highlightedLine;
             for (let i = 0; i < lines.length; i++) {
                 lines[i] = `<span style="display: flex"><span style="width: 3rem">${i+1}</span> <span style="display: inline-block">${lines[i]}</span></span>`;
             }
@@ -264,35 +236,12 @@ function setRemoteControlSequence(commandSeqString, proxyContext) {
     });
 }
 
-function remindTabLabel(tabLabel) {
-    if (!tabLabel.classList.contains("active")) {
-        tabLabel.classList.add("remind");
-    }
-}
-
-function updateElementInfoForScrollToBottom(divElement) {
-    divElement.isScrolledToBottom = divElement.scrollHeight - divElement.scrollTop <= divElement.clientHeight + 1;
-    // console.log("Scrolled to bottom: ", divElement.isScrolledToBottom,
-    //     "scrollHeight: ", divElement.scrollHeight,
-    //     "scrollTop: ", divElement.scrollTop,
-    //     "clientHeight: ", divElement.clientHeight,
-    //     "scrollHeight - scrollTop: ", divElement.scrollHeight - divElement.scrollTop);
-}
-
-function maintainScrollToBottom(divElement) {
-    // console.log("Maintaining scroll to bottom:", divElement.isScrolledToBottom);
-    // If it was scrolled to the bottom, scroll it back to the bottom after the update
-    if (divElement.isScrolledToBottom) {
-        divElement.scrollTop = divElement.scrollHeight;
-        // console.log("Scrolling to bottom:", divElement.scrollTop, divElement.scrollHeight);
-    }
-}
-
 // Initial states
 
 commandInput.value = "powershell.exe";
 changeEOL("\r");
 fileInput.value="exampleStorage/ssh_dai.js"
+stdInput.value = "echo llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll";
 toggleElementEnabled(stdInput, false);
 toggleElementEnabled(sendInputButton, false);
 toggleElementEnabled(stopButton, false);
@@ -313,8 +262,9 @@ const proxyContext = new RemoteControlContext({
     readFile: window.electronAPI.readFileSync,
     listeners: [],
     onData: function(callback) {
+        const name = "proxyContextOnDataListener-" + this.listeners.length;
         const listener = (arg, timeStamp) => {
-            const newMessage = createNewContentLog(arg, timeStamp);
+            const newMessage = createNewContentLog(name, arg, timeStamp);
             callback(newMessage);
         }
         this.listeners.push(['script-stdout', window.electronAPI.onStdout(listener)]);
@@ -459,17 +409,12 @@ window.electronAPI.onScriptRan((arg, timeStamp) => {
 });
 
 window.electronAPI.onStdout((arg, timeStamp) => {
-    console.log("Script stdout: ", arg);
-    latestStdoutLog.log(new TerminalTextLogMessage({
-        text: arg,
-        time: timeStamp,
-        textClass: TextClass.CONTENT
-    }));
+    latestStdoutLog.log(createNewContentLog("script-stdout", arg, timeStamp));
 });
 
 window.electronAPI.onStderr((arg, timeStamp) => {
     console.log("Script stderr: ", arg);
-    latestStderrLog.log(createNewContentLog(arg, timeStamp));
+    latestStderrLog.log(createNewContentLog(null, arg, timeStamp));
 });
 
 // some test operations

@@ -90,6 +90,7 @@ class AutomatonState {
 
     input(symbol, allowEpsilon=true) {
         const epsilonTransition = this.getTransition(null);
+        console.log("Input", symbol, "at", this.info.name, "with epsilon", epsilonTransition, "allowEpsilon", allowEpsilon)
         for (const transition of this.transitionInputList) {
             if (transition !== null && dataContains(symbol, transition)) {
                 return this.transitions[transition];
@@ -196,23 +197,26 @@ class Automaton {
     async input(symbol, actionArgs=null, accumulate=true, allowEpsilon=true) {
         console.log("Automaton.input", this.accumulation, symbol, "at", this.currentState.info.name);
         console.log(this)
-        if (symbol && symbol.text) {
-            symbol = symbol.text;
+        let symbolText = symbol;
+        if (symbol && typeof symbol.text === "string") {
+            symbolText = symbol.text;
         }
-        if (accumulate && typeof symbol === "string") {
-            symbol = this.accumulation + symbol;
+        if (accumulate && typeof symbolText === "string") {
+            symbolText = this.accumulation + symbolText;
             this.accumulation = "";
         }
-        const transition = this.currentState.input(symbol, allowEpsilon);  // get the transition
+        console.log("Normalized symbolText", symbolText, "at", this.currentState.info.name)
+        const transition = this.currentState.input(symbolText, allowEpsilon);  // get the transition
+        console.log("Transition", transition, "at", this.currentState.info.name)
         let retVal = false;
         if (transition) {  // if the transition of the corresponding symbol exists
             if (transition.departAction) {
-                await transition.departAction();
+                await transition.departAction({symbol, symbolText}, actionArgs);
             }
             this.currentState = transition.state;  // move to the next state
             // run actions
             retVal = true;
-            await this.currentState.doActionOnly(symbol, actionArgs);
+            await this.currentState.doActionOnly({symbol, symbolText}, actionArgs);
             this.sendActionPerformed(this.currentState.info);
             if (transition.consumeInput) {
                 symbol = null;
@@ -222,7 +226,7 @@ class Automaton {
             await this.input(symbol, actionArgs, accumulate, allowEpsilon);
         }
         if (!retVal) {
-            this.accumulation = symbol || "";
+            this.accumulation = symbolText || "";
         }
         return retVal;
     }
@@ -332,7 +336,10 @@ class AutomatonSugar extends Automaton {
         return newState;
     }
     End() {
-        this.sugarInfo.currentPointer().end = true;
+        const endState = this.Do();
+        endState.end = true;
+        endState.info.description = "END";
+        endState.info.lineOfCall = getLineOfCall();
         return this.sugarInfo.currentPointer();
     }
 
@@ -354,12 +361,12 @@ class AutomatonSugar extends Automaton {
         return promptState;
     }
 
-    write(data, {password = false, eol = "\n", on=null}={}) {
+    write(data, {password = false, eol = null, on=null}={}) {
         if (!this.context) {
             throw new Error("Context not set");
         }
         const writeState = this.DoOn(on, () => {
-            this.context.changeEOL(eol);
+            if (eol !== null) this.context.changeEOL(eol);
             let dataToWrite = data;
             if (typeof data === "function") {
                 dataToWrite = data();  // call the function to get the data: supports dynamic data
@@ -371,7 +378,7 @@ class AutomatonSugar extends Automaton {
         return writeState;
     }
 
-    writeOnPrompt(data, {password = false, eol = "\n"}={}) {
+    writeOnPrompt(data, {password = false, eol = null}={}) {
         if (!this.context) {
             throw new Error("Context not set");
         }
@@ -394,7 +401,7 @@ class AutomatonSugar extends Automaton {
             this.context.setPrompt();
         }
         const inputState = this.DoOn(this.context.promptContains, (data) => {
-            return this.context.extractOutput(data);
+            return this.context.extractOutput(data.symbolText);
         });
         inputState.info.description = "GetINPUT";
         inputState.info.lineOfCall = getLineOfCall();
@@ -403,14 +410,19 @@ class AutomatonSugar extends Automaton {
 
     wait(time) {
         const waitState = this.DoOn(null, async () => {
+
             if (!waitState.value) {
+                console.log("Entered wait status when not waiting")
                 // add a special "" transition to the head of its transition list
                 waitState.transitionInputList.unshift("");
                 const originalAcceptAllTransition = waitState.transitions[""];
                 const bufferedData = [];
+                console.log("Created bufferedData", bufferedData, bufferedData.length);
                 waitState.transitions[""] = {
                     state: waitState, departAction: (data) => {
-                        bufferedData.push(data);
+                        console.log("departAction: Buffering data", data, "to", bufferedData, bufferedData.length);
+                        bufferedData.push(data.symbol);
+                        console.log(bufferedData, bufferedData.length);
                     }, transitionInput: "", consumeInput: true
                 };
                 console.log("Set waitState value", new Date().toTimeString())
@@ -426,14 +438,22 @@ class AutomatonSugar extends Automaton {
                         console.log("Reset waitState value", new Date().toTimeString())
                         waitState.transitions[""] = originalAcceptAllTransition;
                         waitState.transitionInputList.shift();
+                        console.log("All buffered data", bufferedData);
                         bufferedData.forEach((data) => {
-                            this.context.fakeEvent("script-stdout", data)
+                            console.log("Buffered data", data);
+                            const event="null";
+                            const arg={data: data.rawText, ansiOutputStream: data.ansiOutputStream};
+                            const timestamp=data.time;
+                            this.context.fakeEvent("script-stdout", event, arg, timestamp)
                         });
-
+                        console.log("After buffered data", bufferedData);
                         resolve();
                     }, waitTime);
                 });
                 await waitState.value;
+            } else {
+                console.log("Entered wait status when waiting")
+
             }
         });
         waitState.info.description = "WAIT";

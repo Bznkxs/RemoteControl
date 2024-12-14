@@ -13,87 +13,101 @@
           <div class="tab-separator">&nbsp;|&nbsp;</div>
           <div id="file-tab-label" class="tab-label">Load File</div>
       </div>
-      <div id="log-tab" class="tab">
-          <div id="log-section" class="log-section">
+      <div class="tab-body">
+          <div id="log-tab" class="tab">
               <div id="log-tab-head" class="tab-head">
                   <div id="log-tab-name">Log</div>
               </div>
-              <div id="log-container" class="frame">
-                  <div id="log-content" class="logContainer">
-                      <!-- dynamic content -->
-                  </div>
-              </div>
-              <div id="stdout-container">
-                  <!--        <h5>stdout</h5>-->
-                  <div id="stdout-content" class="logContainer" name="stdout"> </div>
-              </div>
-              <div id="stderr-container">
-                  <!--        <h5>stderr</h5>-->
-                  <div id="stderr-content" class="logContainer" name="stderr"> </div>
-              </div>
-              <div id="exit-code-container">
-                  <!--        <h5>exit code</h5>-->
-                  <div id="exit-code" class="logContainer" name="exit code"> </div>
-              </div>
-          </div>
-          <div id="control-section" class="control-section">
-              <div id="input-container">
-                  <!--          <div id="command-input-container" class="inputContainer">-->
-                  <label for="command-input"></label>
-                  <input type="text" id="command-input" placeholder="Enter command" />
-                  <!--          </div>-->
-                  <!--          <div id="std-input-container" class="inputContainer">-->
-                  <label for="std-input"></label>
-                  <input type="text" id="std-input" placeholder="Enter arguments" />
-                  <input type="text" id="eol-input" placeholder="EOL" />
-                  <label for="eol-input" id="eol-input-label"></label>
-                  <!--          </div>-->
-              </div>
-              <div id="clickable-container" class="clickable-container">
-                  <div id="command-mode-container">
-                      <!-- two options: default and pty -->
-                      <input type="radio" id="default-mode" name="mode" value="default" checked />
-                      <label for="default-mode">Default</label>
-                      <input type="radio" id="pty-mode" name="mode" value="pty" />
-                      <label for="pty-mode">Pty</label>
-                  </div>
-                  <div id="send-command-button-container">
-                      <div id="ssh-button" class="button">
-                          Press to send command
+              <div id="log-tab-body" class="tab-body">
+                  <div id="log-tab-frame" class="tab">
+                      <div id="log-section" class="log-section">
+                          <div id="log-content" class="logContainer">
+                              <!-- dynamic content -->
+                          </div>
+                          <div id="stdout-container">
+                              <!--        <h5>stdout</h5>-->
+                              <div id="stdout-content" class="logContainer" name="stdout"> </div>
+                          </div>
+                          <div id="stderr-container">
+                              <!--        <h5>stderr</h5>-->
+                              <div id="stderr-content" class="logContainer" name="stderr"> </div>
+                          </div>
+                          <div id="exit-code-container">
+                              <!--        <h5>exit code</h5>-->
+                              <div id="exit-code" class="logContainer" name="exit code"> </div>
+                          </div>
                       </div>
-                      <div id="send-input-button" class="button">
-                          Press to send input
+                      <div id="control-section" class="control-section">
+                          <div id="input-container">
+                              <!--          <div id="command-input-container" class="inputContainer">-->
+                              <label for="command-input"></label>
+                              <input type="text" id="command-input" placeholder="Enter command" />
+                              <!--          </div>-->
+                              <!--          <div id="std-input-container" class="inputContainer">-->
+                              <label for="std-input"></label>
+                              <input type="text" id="std-input" placeholder="Enter arguments" />
+                              <input type="text" id="eol-input" placeholder="EOL" />
+                              <label for="eol-input" id="eol-input-label"></label>
+                              <!--          </div>-->
+                          </div>
+                          <div id="clickable-container" class="clickable-container">
+                              <div id="command-mode-container">
+                                  <!-- two options: default and pty -->
+                                  <input type="radio" id="default-mode" name="mode" value="default" checked />
+                                  <label for="default-mode">Default</label>
+                                  <input type="radio" id="pty-mode" name="mode" value="pty" />
+                                  <label for="pty-mode">Pty</label>
+                              </div>
+                              <div id="send-command-button-container">
+                                  <div id="ssh-button" class="button">
+                                      Press to send command
+                                  </div>
+                                  <div id="send-input-button" class="button">
+                                      Press to send input
+                                  </div>
+                              </div>
+                              <div id="stop-button" class="button">
+                                  Press to stop command
+                              </div>
+                          </div>
                       </div>
                   </div>
-                  <div id="stop-button" class="button">
-                      Press to stop command
-                  </div>
-              </div>
-          </div>
-      </div>
-      <div id="file-tab" class="tab">
-          <div class="log-section">
-              <div id="file-tab-head" class="tab-head">
-                  <div id="file-tab-name">File</div>
-              </div>
-              <div id="file-container" class="frame">
-                  <div id="file-content" class="fileContainer">
-                  </div>
-              </div>
-          </div>
-          <div id="file-control-section" class="control-section">
-              <div id="file-input-container">
-                  <label for="file-input"></label>
-                  <input type="text" id="file-input" placeholder="Enter file path"/>
-              </div>
-              <div id="file-clickable-container" class="clickable-container">
-                  <div id="load-file-button" class="button">
-                      Press to load file
-                  </div>
-              </div>
-          </div>
 
+
+              </div>
+
+          </div>
+          <div id="file-tab" class="tab">
+              <div class="borderless-frame">
+                  <div id="file-tab-head" class="tab-head">
+                      <div id="file-tab-name">File</div>
+                  </div>
+                  <div id="file-container" class="frame">
+                      <div id="file-content" class="fileContainer">
+                      </div>
+                  </div>
+              </div>
+              <div id="file-control-section" class="control-section">
+                  <div id="file-input-container">
+                      <label for="file-input"></label>
+                      <input type="text" id="file-input" placeholder="Enter file path"/>
+                  </div>
+                  <div id="file-clickable-container" class="clickable-container">
+                      <div id="load-file-button" class="button">
+                          Press to load file
+                      </div>
+                      <div id="stop-file-button" class="button">
+                          Press to stop script
+                      </div>
+                      <div id="start-file-button" class="button">
+                          Press to start script
+                      </div>
+                  </div>
+              </div>
+
+          </div>
       </div>
+
   </div>
 
   </body>

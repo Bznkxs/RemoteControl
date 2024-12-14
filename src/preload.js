@@ -4,7 +4,6 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-
 // const path = require("path");
 // const {TextClass, TerminalTextLogMessage, TerminalCommandLogMessage} = require(path.join(__dirname,
 //     "./terminal_log_message"));

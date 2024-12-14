@@ -1,12 +1,13 @@
 // const { TextClass, TerminalTextLogMessage, TerminalCommandLogMessage } = require('./terminal_log_message.js');
-import { TerminalTextLogMessage, TextClass, TerminalCommandLogMessage } from "./terminal_log_message.js";
 import { parseAnsiMessage, getInputHintMarker, parseSimpleMessage } from "./parse_terminal_ansi_message.js";
+import {TextClass} from "../shared/text_class.js";
+import {TerminalCommandLogMessage, TerminalTextLogMessage} from "../shared/message.js";
 
 // map element to the last cursor position
 let previousInfo = new Map();
 
 export
-class BeautifiedLog {
+class BeautifiedLogMessage {
     constructor(message, previousInfo) {
         this.mergeWithPrevious = false;
         if (message instanceof TerminalTextLogMessage) {
@@ -41,7 +42,7 @@ class BeautifiedLog {
             }
             this.getMessage = () => message;
             this.getBeautifiedMessage = (parseANSI=true) => {
-                const beautifiedMessage = BeautifiedLog.createMessageElement(message, parseANSI);
+                const beautifiedMessage = BeautifiedLogMessage.createMessageElement(message, parseANSI);
                 console.log("Beautified message", beautifiedMessage);
                 if (this.customInputHint) {
                     // add it before the first child of the messageContentContainer
@@ -72,8 +73,8 @@ class BeautifiedLog {
     static createTimeStampElement(time) {
         const timeStamp = document.createElement('span');
         timeStamp.classList.add('timestamp');
-        timeStamp.innerText = `[${time.toLocaleTimeString('en-US', 
-             {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3})
+        timeStamp.innerText = `[${time.toLocaleTimeString('en-US',
+            {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3})
         }]`;
         return timeStamp;
     }
@@ -230,10 +231,10 @@ function writeMessageToElement(element, message) {
         if (!previousInfo.has(element)) {
             previousInfo.set(element, {cursor: {row: 0, col: 0}, buffer: null, element: lastElementChild, container: element});
         }
-        const beautifiedLog = new BeautifiedLog(message, previousInfo.get(element));
+        const beautifiedLog = new BeautifiedLogMessage(message, previousInfo.get(element));
         if (message.isInput) {
             console.log("Message is input", message);
-            if (BeautifiedLog.isElementInputHint(lastElementChild)) {
+            if (BeautifiedLogMessage.isElementInputHint(lastElementChild)) {
                 // make a deep copy of the input hint
                 beautifiedLog.customInputHint = lastElementChild.getElementsByClassName(
                     'messageContentContainer'
@@ -291,11 +292,13 @@ function writeMessageToElement(element, message) {
             // });
         }
         previousInfo.set(element, {cursor: null, buffer: null, message: message, element: contentToAppend,
-        lastOutputEndsWithN: beautifiedLog.lastOutputEndsWithN, container: element});
+            lastOutputEndsWithN: beautifiedLog.lastOutputEndsWithN, container: element});
+
+        contentToAppend.title = JSON.stringify(message.text);
 
     } else {
         throw new Error('HTMLElement must have class "logContainer"');
     }
 }
 
-// module.exports = { BeautifiedLog, writeMessageToElement };
+// module.exports = { BeautifiedLogMessage, writeMessageToElement };

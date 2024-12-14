@@ -13,7 +13,7 @@ body {
   height: 90%;
   width: 90%;
   display: flex;
-    flex-direction: column;
+  flex-direction: column;
   align-content: center;
 }
 
@@ -28,6 +28,14 @@ body {
     width: 100%;
     display: flex;
     flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  border-radius: 0.3em;
+  border: 5px solid #ced4da;
+  padding: 1em;
+  max-width: 90%;
+  margin: 0;
 }
 
 
@@ -155,11 +163,12 @@ body {
 }
 
 .messageContainer.mergedWithPrevious .metaInfoContainer {
-  display: flex;
-  visibility: hidden;
+  /*display: flex;*/
+  display: none;
+  /*visibility: hidden;*/
   position: absolute;
   right: 0;
-  top: 1rem;
+  top: .2rem;
 
   background-color: #f0f0f0;
   border-radius: .3rem;
@@ -171,9 +180,8 @@ body {
 }
 
 .messageContainer.mergedWithPrevious:hover .metaInfoContainer {
-    /*display: flex;*/
-    visibility: visible;
-    transform: translateY(-50%);
+    display: flex;
+    /*visibility: visible;*/
   animation: easeOut 12s ease-in-out 1;
   opacity: 0.01;
   /*color: transparent;*/
@@ -182,20 +190,17 @@ body {
 
 .messageContainer.mergedWithPrevious .metaInfoContainer:hover {
   /*display: flex;*/
-  visibility: visible;
-  transform: translateY(-50%);
-
+  /*visibility: visible;*/
   opacity: 0.8;
-
   animation: none;
   /*opacity: 0.1;*/
   /*animation: easeOut .5s ease-in-out 1;*/
 }
 
 .messageContainer.mergedWithPrevious .metaInfoContainer:has(.contentVisibilityButton:hover) {
-  visibility: visible;
+  /*visibility: visible;*/
   /*background-color: red;*/
-  transform: translateY(-50%);
+  /*transform: translateY(-50%);*/
   opacity: 1;
   animation: none;
 }

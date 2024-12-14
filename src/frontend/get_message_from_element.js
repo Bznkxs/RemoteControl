@@ -1,6 +1,7 @@
 // const {TerminalTextLogMessage, TextClass, TerminalCommandLogMessage} = require("./terminal_log_message");
 
-import {TerminalTextLogMessage, TextClass, TerminalCommandLogMessage} from "./terminal_log_message.js";
+import {TextClass} from "../shared/text_class.js";
+import {TerminalCommandLogMessage, TerminalTextLogMessage} from "../shared/message.js";
 
 
 /**

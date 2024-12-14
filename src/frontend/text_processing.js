@@ -1,6 +1,6 @@
 export
 function dataContains(data, contains) {
-    if (!contains) return true;  // if contains is null or undefined, then it is always true
+    if (contains === null || contains === undefined) return true;  // if contains is null or undefined, then it is always true
     // deal with situations where data does not need to be String
     if (data && data.text) {
         data = data.text;

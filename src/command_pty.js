@@ -1,5 +1,6 @@
 const pty = require('node-pty');
 const {Command} = require ("./command");
+const {getSimpleTerminalInfo} = require("./backend_terminal_parsing");
 class CommandPTY extends Command {
     constructor() {
         super();
@@ -17,7 +18,8 @@ class CommandPTY extends Command {
             this.childProcess = pty.spawn(command, args, {
                 env: process.env,
                 cwd: process.cwd(),
-
+                cols: 80,
+                rows: 30,
             });
         }
 
@@ -37,8 +39,15 @@ class CommandPTY extends Command {
         event.reply("script-spawn", "Child process spawned");  // already spawned
 
         this.childProcess.onData((data) => {
-            console.log(`Received from child: ${data.toString().trim()}`);
-            event.reply("script-stdout", data);
+            console.log(`Received from child: ${data}`);
+            console.log("GETSIMPLETERMINALFINO", data)
+            const {stream: ansiOutputStream} = getSimpleTerminalInfo({
+                rawOutput: data,
+                terminal: this.terminal,
+                parser: this.parser,
+                continuousMessage: false
+            })
+            event.reply("script-stdout", {data, ansiOutputStream});
         });
         this.isProcessRunning = true;
         this.childProcess.onExit( (arg) => {

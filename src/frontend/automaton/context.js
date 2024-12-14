@@ -1,6 +1,7 @@
-import {TerminalCommandLogMessage, TerminalTextLogMessage, TextClass} from "../terminal_log_message.js";
 import {AutomatonSugar} from "./automaton.js";
 import {dataContains} from "../text_processing.js";
+import {TextClass} from "../../shared/text_class.js";
+import {TerminalCommandLogMessage, TerminalTextLogMessage} from "../../shared/message.js";
 
 class BaseRemoteControlContext {
     execute(command, ...args) {
@@ -106,6 +107,7 @@ class RemoteControlContext extends BaseRemoteControlContext {
     }
 
     changeEOL(eol) {
+        console.log("changeEOL", JSON.stringify(eol))
         this.callables.changeEOL(eol);
     }
 
@@ -147,10 +149,10 @@ class RemoteControlContext extends BaseRemoteControlContext {
         return dataContains(data, contains);
     }
 
-    fakeEvent(channel, data) {
+    fakeEvent(channel, ...data) {
         for (const [c, listener] of this.callables.listeners) {
             if (c === channel) {
-                listener(data);
+                listener(...data);
             }
         }
     }

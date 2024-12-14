@@ -2,7 +2,7 @@
 // const { writeMessageToElement } = require('./write_message_to_element.js');
 
 import { writeMessageToElement } from "./write_message_to_element.js";
-import { TerminalTextLogMessage } from "./terminal_log_message.js";
+import {TerminalTextLogMessage} from "../shared/message.js";
 
 /**
  * A class that holds log messages and hooks elements to display them.
@@ -16,6 +16,7 @@ class Log {
     constructor(messages, hookedElements) {
         const this_messages = [];  // protected
         const this_hookedElements = [];  // protected
+        this.writeMessageToElement = writeMessageToElement;
 
         /**
          * Warning: This method does not display the message. Use log() instead.
@@ -49,8 +50,8 @@ class Log {
             return this_messages.length;
         }
 
-        this.getMessagesSlice = () => {
-            return this_messages.slice();
+        this.getMessagesSlice = (start=null, end=null) => {
+            return this_messages.slice(start, end);
         }
 
         this.hookElement = (element) => {
@@ -103,7 +104,7 @@ class Log {
     log(message) {
         this.addMessageOnlyWithoutDisplay(message);
         this.hookedElementsSlice.forEach((element) => {
-            writeMessageToElement(element, message);
+            this.writeMessageToElement(element, message);
         });
     }
 

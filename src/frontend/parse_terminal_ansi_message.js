@@ -279,7 +279,9 @@ function parseAnsiMessage(message, previousInfo, previousIsContent) {
 export
 function parseSimpleMessage(container, message, previousInfo, mergeWithPrevious) {
     const terminalIdentifier = container.id;
-    const {outputSequence} = getSimpleTerminal({name: terminalIdentifier, rawOutput: message});
+    const {stream} = getSimpleTerminal({name: terminalIdentifier, rawOutput: message, mergeWithPrevious: false});
+    let {outputSequence, newStartIndex} = stream;
+    outputSequence = outputSequence.slice(newStartIndex);
     const frag = document.createDocumentFragment();
     let returnLastOutput = null;
     outputSequence.forEach((output) => {
@@ -320,4 +322,160 @@ function parseSimpleMessage(container, message, previousInfo, mergeWithPrevious)
         frag.appendChild(newSpan);
     })
     return {frag, mergeWithPrevious, lastOutputEndsWithN: returnLastOutput === null ? null: returnLastOutput.endsWith("\n")};
+}
+
+
+
+export
+function parseSimpleANSIMessage(container, message, beautifiedLog, mergeWithPrevious, continuousMessage) {
+    // continuousMessage: if true, the message is a part of a continuous message
+    // mergeWithPrevious: if true, the message is displayed in the same block as the previous message
+    // conditions for continuousMessage: two messages are both output
+    // conditions for mergeWithPrevious: continuousMessage is true, time constraint is satisfied,
+    // (~and there are no escaped commands of certain types~)
+    console.log("parseSimpleANSIMessage", container.id, message.getMessage().text, mergeWithPrevious, continuousMessage);
+
+    const terminalIdentifier = container.id;
+    let stream;
+    if (message.ansiOutputStream) {
+        stream = message.ansiOutputStream;
+    }
+    else {
+        stream = getSimpleTerminal({name: terminalIdentifier, rawOutput: message.getMessage().text, continuousMessage: continuousMessage}).stream;
+    }
+    let {outputSequence, newStartIndex, previousEndsWithNewLine} = stream;
+    // outputSequence = outputSequence.slice(newStartIndex);
+    let frag = null;
+    let returnLastOutput = null;
+    // find the first beautified log in this merged block
+    let {message: currentHistoricBeautifiedLog, difference: blockLength} = message.getMergedBlockTopBeautifiedMessage();
+    let currentLogIndex = null;
+    if (beautifiedLog) {
+        currentLogIndex = beautifiedLog.length - blockLength;
+    }
+    if (blockLength === 0) {
+        currentHistoricBeautifiedLog = null;
+        currentLogIndex = null;
+    }
+    console.log("Find merge block", currentLogIndex, currentHistoricBeautifiedLog)
+    let lastOutputInDifferentMessage = true;
+    let lastStartedIndex = 0;
+    const noEOLIndicator = () => {
+        const newSpan = document.createElement("span");
+        const textNode = document.createTextNode("NO NEWLINE");
+        newSpan.appendChild(textNode);
+        newSpan.classList.add("fallback");
+        newSpan.classList.add("indicator");
+        return newSpan;
+    }
+    outputSequence.forEach((output, index) => {
+        let text = output.text;
+        if (text === null || text === undefined) {
+            text = output.fallback;
+        }
+        if (text === null || text === undefined) {
+            return;
+        }
+        if ((output.actionClass === "set-title") && (container)) {
+            container.parentElement.parentElement.getElementsByClassName("tab-head")[0].firstElementChild.textContent = output.actionArgs;
+            return;
+        }
+        // now we are dealing with text outputs
+        lastOutputInDifferentMessage = false;
+        while (frag === null || currentHistoricBeautifiedLog && currentHistoricBeautifiedLog.getLastOutputOperationIndex() < index) {
+            // frag === null only if we are in a new message.
+
+            if (frag === null) {
+                lastOutputInDifferentMessage = true;
+                lastStartedIndex = index;
+
+                if (currentHistoricBeautifiedLog) {
+                    console.log("Replace historic log #", currentLogIndex, "with new fragment", currentHistoricBeautifiedLog.getMessageContentElement())
+                    if (currentHistoricBeautifiedLog === message) {
+                        throw new Error("currentHistoricBeautifiedLog === message", message);
+                    }
+                    currentHistoricBeautifiedLog.getMessageContentElement().replaceChildren();
+                    frag = currentHistoricBeautifiedLog.getMessageContentElement();
+                } else {
+                    frag = document.createDocumentFragment();
+                }
+            }
+            if (currentHistoricBeautifiedLog && currentHistoricBeautifiedLog.getLastOutputOperationIndex() < index) {
+                console.log("Current historic log #", currentLogIndex, "is not in the range of", index, "(max ", currentHistoricBeautifiedLog.getLastOutputOperationIndex(), ")")
+                if (!previousEndsWithNewLine) {
+                    frag.appendChild(noEOLIndicator());
+                }
+                // check if the currentHistoricBeautifiedLog is in the range, and if not, move to the next one
+                currentLogIndex++;
+                let nextHistoricBeautifiedLog = beautifiedLog.at(currentLogIndex);
+                if (nextHistoricBeautifiedLog) {
+                    currentHistoricBeautifiedLog = nextHistoricBeautifiedLog;
+                } else {
+                    currentHistoricBeautifiedLog = null;  // we are dealing with the new one
+                }
+                console.log("Current frag", frag)
+                console.log("Clearing frag.")
+                frag = null;
+            }
+        }
+
+        if (continuousMessage && lastOutputInDifferentMessage && !previousEndsWithNewLine && text.startsWith("\n")) {
+            // const oldText = JSON.stringify(text);
+            text = text.substring(1);  // remove the newline, since it is merged with the previous
+            // text = oldText + ",text.substring(1)" + text;
+        } else {
+            // text = "lastOutputEndsWithN=" + previousInfo.lastOutputEndsWithN + "," + text;
+        }
+
+        previousEndsWithNewLine = text.endsWith("\n");
+
+        if (!text) {
+            return;
+        }
+        const newSpan = document.createElement("span");
+        const textNode = document.createTextNode(text);
+        newSpan.appendChild(textNode);
+        if (output.elementClass) {
+            const elementClass = document.createAttribute('class');
+            elementClass.value = output.elementClass;
+            newSpan.setAttributeNode(elementClass);
+        }
+        if (output.elementStyle) {
+            newSpan.style = output.elementStyle;
+        }
+        frag.appendChild(newSpan);
+    })
+    if (!previousEndsWithNewLine) {
+        frag.appendChild(noEOLIndicator());
+    }
+    if (currentHistoricBeautifiedLog) {
+        // we are still in an existing message. This means we do not create a new message, and we need to update the info of old messages from here
+        currentHistoricBeautifiedLog.setLastOutputOperationIndex(outputSequence.length - 1);
+        for (let i = currentLogIndex + 1; i < beautifiedLog.length; ++i) {
+            let nextHistoricBeautifiedLog = beautifiedLog.get(i);
+            if (nextHistoricBeautifiedLog) {
+                nextHistoricBeautifiedLog.setFirstOutputOperationIndex(outputSequence.length);
+                nextHistoricBeautifiedLog.setOutputOperationCount(0);
+                nextHistoricBeautifiedLog.getMessageContentElement().replaceChildren();
+            }
+        }
+        frag = null;
+    } else {
+        message.setFirstOutputOperationIndex(lastStartedIndex);
+        message.setLastOutputOperationIndex(outputSequence.length - 1);
+    }
+    return {frag, mergeWithPrevious, lastOutputEndsWithN: previousEndsWithNewLine};
+}
+
+export
+function parseTerminalMessageText(identifier, message) {
+    console.log("parseTerminalMessageText", identifier, message.text, message.ansiOutputStream)
+    const stream = message.ansiOutputStream ? message.ansiOutputStream : getSimpleTerminal({name: identifier, rawOutput: message.text, continuousMessage: false}).stream;
+    let {outputSequence, newStartIndex} = stream;
+    let text = "";
+    for (let i = newStartIndex; i < outputSequence.length; ++i) {
+        if (outputSequence[i].text)
+            text += outputSequence[i].text;
+    }
+    return text;
 }

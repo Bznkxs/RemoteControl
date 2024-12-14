@@ -2,8 +2,9 @@ const { app, BrowserWindow } = require ('electron');
 const path = require ('node:path');
 const started = require ('electron-squirrel-startup');
 const {ipcMain} = require ('electron');
-require ("node-pty");
 
+require ("node-pty");
+const requireESM = require('esm')(module);
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
@@ -15,7 +16,7 @@ const createWindow = () => {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'frontend', 'preload.js')
+      preload: path.join(__dirname, 'preload.js')
     },
   });
 
@@ -68,10 +69,10 @@ ipcMain.on("change-command", (event, arg) => {
         command = new CommandPTY();
     }
     // list listener of ipcMain signal 'run-script'
-    console.log("Listeners of 'run-script':")
-    ipcMain.listeners('run-script').forEach((listener) => {
-        console.log(listener);
-    });
+    // console.log("Listeners of 'run-script':")
+    // ipcMain.listeners('run-script').forEach((listener) => {
+    //     console.log(listener);
+    // });
 });
 
 
@@ -79,7 +80,7 @@ const { getAnsiTerminalInfo, getSimpleTerminalInfo } = require('./backend_termin
 
 
 ipcMain.on("get-ansi-terminal", (event, data) => {
-    console.log(`Parsing ANSI data`);
+    // console.log(`Parsing ANSI data`);
     event.returnValue = getAnsiTerminalInfo(command, data);
 });
 
@@ -90,7 +91,7 @@ ipcMain.on("get-simple-terminal", (event, data) => {
 
 ipcMain.on("read-file", (event, path) => {
     const fs = require('fs');
-    console.log(process.cwd());
+    // console.log(process.cwd());
     fs.readFile(path, 'utf8', (err, data) => {
         if (err) {
             console.log("Error reading file", err);

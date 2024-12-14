@@ -40,29 +40,31 @@ const getTerminalAndParser = (name) => {
     if (terminalAndParsers[name]) {
         return terminalAndParsers[name];
     } else {
-        const terminal = new SimpleTerminal(800, 25, 50);
+        const terminal = new SimpleTerminal(80, 30, 50);
         const parser = new AnsiParser(terminal);
         terminalAndParsers[name] = {terminal, parser};
         return terminalAndParsers[name];
     }
 }
 const getSimpleTerminalInfo = (data) => {
-    const {name, rawOutput} = data;
-    let terminal, parser;
-    if (name) {
-        const terminalAndParser = getTerminalAndParser(name);
-        terminal = terminalAndParser.terminal;
-        parser = terminalAndParser.parser;
-        console.log(name, terminal, parser)
-    } else {
-        terminal = new SimpleTerminal(800, 25, 50);
-        parser = new AnsiParser(terminal);
+    let {name, rawOutput, continuousMessage=false, terminal, parser} = data;
+    if (!terminal) {
+        if (name) {
+            const terminalAndParser = getTerminalAndParser(name);
+            terminal = terminalAndParser.terminal;
+            parser = terminalAndParser.parser;
+            // console.log(name, terminal, parser)
+        } else {
+            terminal = new SimpleTerminal(80, 30, 50);
+            parser = new AnsiParser(terminal);
+        }
     }
+    console.log(new Error, rawOutput)
     parser.parse(rawOutput);
-    const outputSequence = terminal.streamOut();
-    console.log("outputSequence", outputSequence)
+    const stream = terminal.streamOut(continuousMessage);
+    console.log("outputSequence", stream)
     return {
-        outputSequence: outputSequence
+        stream: stream
     };
 }
 
