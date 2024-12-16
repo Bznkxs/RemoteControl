@@ -3,9 +3,9 @@ import {
     remindTabLabel,
     toggleElementEnabled,
     updateElementInfoForScrollToBottom
-} from "./element_utils.js";
+} from "../element_utils.js";
 import {ConversationWindowLogMessage} from "./conversation_window_log_message.js";
-import {TabPageElementWrapper} from "./tab_element";
+import {TabPageElementWrapper} from "../tab_element.js";
 
 export class ConversationWindow extends TabPageElementWrapper {
 
@@ -93,6 +93,8 @@ export class ConversationWindow extends TabPageElementWrapper {
         this.sendRawInputListeners = [];
         this.sendSignalListeners = [];
         this.sendCommandListeners = [];
+        this.globalEventListeners = [];
+        this.windowLogMessages = []
 
         this.getInputString = () => {
             return this.stdinInput.value;
@@ -108,6 +110,7 @@ export class ConversationWindow extends TabPageElementWrapper {
                 return false;
             }
             this._localEOL = eol;
+            console.log("[ConversationWindow] EOL changed to: " + eol)
             return true;
         };
 
@@ -122,7 +125,8 @@ export class ConversationWindow extends TabPageElementWrapper {
             for (const listener of this.sendCommandListeners) {
                 const commandString = this.getCommandString();
                 console.log("[ConversationWindow] Sending command: " + JSON.stringify(commandString));
-                listener(commandString);
+                const options = {password: false};
+                listener(commandString, options);
             }
         }
         this.stopButton.onclick = () => {
@@ -133,7 +137,9 @@ export class ConversationWindow extends TabPageElementWrapper {
         }
 
         this.eolInput.addEventListener("input", () => {
+
             const eol = this.eolInput.value;
+            console.log("[ConversationWindow] EOL input changed to: " + eol)
             this.changeEOL(eol);
         })
 
@@ -144,7 +150,7 @@ export class ConversationWindow extends TabPageElementWrapper {
         });
 
 
-        const logTabLabel = document.getElementById("log-tab-label");
+        const logTabLabel = this.tabLabelElement
 
         const maintainScrollToBottomCallback = () => {
             remindTabLabel(logTabLabel);
@@ -167,15 +173,34 @@ export class ConversationWindow extends TabPageElementWrapper {
         toggleElementEnabled(this.stdinInput, false);
         toggleElementEnabled(this.sendButton, false);
         toggleElementEnabled(this.stopButton, false);
+        this.commandButtonNotForceDisabled = true;
         this.syncCommandButtonEnabled();
 
 
-        this.globalEventListeners = [];
 
-        this.windowLogMessages = []
+
+        this.scriptSpawnedListener = (arg, timeStamp) => {
+            console.log("[ConversationWindow] Script spawned: " + arg + " at " + timeStamp);
+            toggleElementEnabled(this.stdinInput, true);
+            toggleElementEnabled(this.sendButton, true);
+            toggleElementEnabled(this.stopButton, true);
+            toggleElementEnabled(this.commandInput, false);
+            this.commandButtonNotForceDisabled = false;
+            this.syncCommandButtonEnabled();
+        }
+        this.exitCodeListener = (message) => {
+            console.log("[ConversationWindow] Script exited with code: " + message.text);
+            toggleElementEnabled(this.stdinInput, false);
+            toggleElementEnabled(this.sendButton, false);
+            toggleElementEnabled(this.stopButton, false);
+            toggleElementEnabled(this.commandInput, true);
+            this.commandButtonNotForceDisabled = true;
+            this.syncCommandButtonEnabled();
+        }
     }
 
-    setEOLGetter(eolGetter) {
+    setEOLGetter = (eolGetter) => {
+        console.log("[ConversationWindow] EOL getter set", eolGetter, new Error().stack)
         if (eolGetter) {
             this.getEOL = eolGetter;
         } else {
@@ -193,7 +218,8 @@ export class ConversationWindow extends TabPageElementWrapper {
     }
 
     syncCommandButtonEnabled() {
-        toggleElementEnabled(this.commandButton, this.commandInput.value.length > 0);
+        toggleElementEnabled(this.commandButton, this.commandInput.value.length > 0
+            && this.commandButtonNotForceDisabled);
     }
 
     destroy() {
@@ -205,7 +231,7 @@ export class ConversationWindow extends TabPageElementWrapper {
 
     }
 
-    addMessage(message) {
+    addMessage = (message) => {
         const windowLogMessage = new ConversationWindowLogMessage(message);
         if (this.windowLogMessages.length > 0) {
             const lastWindowLogMessage = this.windowLogMessages[this.windowLogMessages.length - 1];
@@ -222,19 +248,19 @@ export class ConversationWindow extends TabPageElementWrapper {
         }
     }
 
-    onSendInputWithEOL(callback) {
+    onSendInputWithEOL = (callback) => {
         this.sendRawInputListeners.push(callback);
     }
 
-    onSendSignal(callback) {
+    onSendSignal = (callback) => {
         this.sendSignalListeners.push(callback);
     }
 
-    onSendCommand(callback) {
+    onSendCommand = (callback) => {
         this.sendCommandListeners.push(callback);
     }
 
-    stringifyEOL(eol) {
+    stringifyEOL = (eol) => {
         return JSON.stringify(eol).replaceAll('"', '');
     }
 
@@ -243,7 +269,7 @@ export class ConversationWindow extends TabPageElementWrapper {
      * EOL
      * @param eol
      */
-    syncEOL(eol) {
+    syncEOL = (eol) => {
         this.eolInput.value = this.stringifyEOL(eol);
         this.updateEOLDisplay(eol);
     }
@@ -252,7 +278,7 @@ export class ConversationWindow extends TabPageElementWrapper {
      * Update the EOL in display
      * @param eol
      */
-    updateEOLDisplay(eol) {
+    updateEOLDisplay = (eol) => {
         if (this.eolInput.value !== this.stringifyEOL(eol)) {
             this.eolInputLabel.textContent = "Using EOL: " + eol;
             this.eolInputLabel.classList.add("error");
@@ -266,7 +292,8 @@ export class ConversationWindow extends TabPageElementWrapper {
      * New EOL comes from elements of the ConversationWindow object. Update the EOL variable
      * @param eol
      */
-    changeEOL(eol) {
+    changeEOL = (eol) => {
+        console.log("[ConversationWindow] EOL changed to: " + eol)
         const allowChange = this.changeEOLListener(eol);
         if (allowChange) {
             this.updateEOLDisplay(eol);
@@ -275,11 +302,11 @@ export class ConversationWindow extends TabPageElementWrapper {
         }
     }
 
-    onChangeEOL(callback) {
+    onChangeEOL = (callback) => {
         this.changeEOLListener = callback;
     }
 
-    clear() {
+    clear = () => {
         this.conversationContainer.innerHTML = "";
     }
 }

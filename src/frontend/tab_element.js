@@ -1,4 +1,4 @@
-import {toggleElementVisibility} from "./element_utils";
+import {toggleElementVisibility} from "./element_utils.js";
 
 export class TabPageElementWrapper {
     /**
@@ -99,20 +99,31 @@ export class TabElementWrapper {
         this.tabElement.appendChild(this.tabHeadElement);
         this.tabElement.appendChild(this.tabBodyElement);
         this.containerElement.appendChild(this.tabElement);
+
         this.tabs = [];
     }
 
-    createTab(tabName, id=null) {
+    createTab(tabName, id=null, showTab=true) {
         const tabContentElementWrapper = new TabPageElementWrapper(this, tabName, id, this);
         this.pushTab(tabContentElementWrapper);
+        if (showTab) {
+            this.selectTab(tabContentElementWrapper);
+        } else {
+            tabContentElementWrapper.hide();
+        }
         return tabContentElementWrapper;
     }
 
-    pushTab(tab) {
+    pushTab(tab, showTab=true) {
         if (this.tabs.includes(tab)) {
             return;
         }
         this.tabs.push(tab);
+        if (showTab) {
+            this.selectTab(tab);
+        } else {
+            tab.hide();
+        }
     }
 
     selectTab(tab) {

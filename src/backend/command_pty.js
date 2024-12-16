@@ -1,6 +1,6 @@
 const pty = require('node-pty');
 const {Command} = require ("./command");
-const {getSimpleTerminalInfo} = require("./backend_terminal_parsing");
+const {getSimpleTerminalInfo} = require("../backend_terminal_parsing");
 class CommandPTY extends Command {
     constructor() {
         super();

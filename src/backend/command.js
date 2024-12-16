@@ -2,7 +2,7 @@ const { spawn } = require('child_process');
 const {ipcMain} = require( 'electron' );
 const AnsiParser = require('node-ansiparser');
 const AnsiTerminal = require('node-ansiterminal').AnsiTerminal;
-const {SimpleTerminal} = require('./simpleAnsiTerminal/simple_terminal');
+const {SimpleTerminal} = require('../simpleAnsiTerminal/simple_terminal');
 
 class Command {
     childProcess = null;

@@ -54,8 +54,8 @@ app.on('window-all-closed', () => {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
 
-const {Command} = require ("./command");
-const {CommandPTY} = require ("./command_pty");
+const {Command} = require ("./backend/command");
+const {CommandPTY} = require ("./backend/command_pty");
 
 let command;
 ipcMain.on("change-command", (event, arg) => {

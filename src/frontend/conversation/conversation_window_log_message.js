@@ -1,6 +1,7 @@
-import {TerminalCommandLogMessage, TerminalTextLogMessage} from "../shared/message.js";
-import {TextClass} from "../shared/text_class.js";
-import {getInputHintMarker} from "./parse_terminal_ansi_message";
+import {TerminalCommandLogMessage, TerminalTextLogMessage} from "../../shared/message.js";
+import {TextClass} from "../../shared/text_class.js";
+import {getInputHintMarker} from "../parse_terminal_ansi_message.js";
+import {visualizeAnsiOutputStream} from "./visualize_ansi_output_stream.js";
 
 export class ConversationWindowLogMessage {
     constructor(message) {
@@ -143,12 +144,14 @@ export class ConversationWindowLogMessage {
     getParsedMessage() {
         if (!this.parsedMessage) {
             const message = this.getMessage();
-            let text = message.text;
+            let htmlSnippet = message.text;
             if (message.textClass.v === TextClass.CONTENT.v && this.parseANSI) {
-                if (typeof message.parsedText === "string") text = message.parsedText;
+                if (message.ansiOutputStream !== null && message.ansiOutputStream !== undefined) {
+                    htmlSnippet = visualizeAnsiOutputStream(message.ansiOutputStream);
+                }
                 else this.generateMessage = false;
             }
-            this.parsedMessage = text;
+            this.parsedMessage = htmlSnippet;
         }
 
         return this.parsedMessage;

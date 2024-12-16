@@ -109,7 +109,9 @@ let apis = {
 
 
 contextBridge.exposeInMainWorld('electronAPI', apis)
-
+const dummy = {electronAPI: apis};
+function unused(...args) {}
+unused(dummy);
 
 
 contextBridge.exposeInMainWorld("ansiAPI", {
@@ -117,12 +119,85 @@ contextBridge.exposeInMainWorld("ansiAPI", {
     getSimpleTerminal: (data) => ipcRenderer.sendSync("get-simple-terminal", data)
 });
 
+class Channel {
+    constructor(channelId) {
+        this.channelId = channelId;
+        ipcRenderer.send('create-channel', channelId);
+        this.callbacks = [];
+    }
 
-// contextBridge.exposeInMainWorld("frontendAPI", {
-//     TextClass,
-//     TerminalTextLogMessage,
-//     TerminalCommandLogMessage,
-//     Log,
-//     getMessageFromInputElement,
-//     getCommandFromInputElement
-// })
+    destroy() {
+        ipcRenderer.send('remove-channel', this.channelId);
+        this.callbacks.forEach(([channelName, listener]) => {
+            ipcRenderer.removeListener(channelName, listener);
+        });
+    }
+
+    sendInput(inputString, options) {
+        ipcRenderer.send('channel-send-input-' + this.channelId, inputString, options);
+    }
+
+    sendCommand(commandString) {
+        ipcRenderer.send('channel-send-command-' + this.channelId, commandString);
+    }
+
+    sendSignal(signal) {
+        ipcRenderer.send('channel-signal-' + this.channelId, signal);
+    }
+
+    onEvent(channelName, callback) {
+        const listener = (event, arg) => {
+            callback(arg);
+        }
+        ipcRenderer.on(channelName, listener);
+        this.callbacks.push([channelName, listener]);
+    }
+
+    removeEventListener(channelName, listener) {
+        ipcRenderer.off(channelName, listener);
+        this.callbacks = this.callbacks.filter(([_, cb]) => cb !== listener);
+    }
+
+    onSerializedMessage(callback) {
+        this.onEvent('channel-serialized-message-' + this.channelId, callback);
+    }
+
+    removeSerializedMessageListener(callback) {
+        this.removeEventListener('channel-serialized-message-' + this.channelId, callback);
+    }
+
+    onScriptSpawned(callback) {
+        this.onEvent('channel-script-spawn-' + this.channelId, callback);
+    }
+
+}
+const communicationAPI = {
+    channels : {},
+    createChannel: (channelId) => {
+        communicationAPI.channels[channelId] = new Channel(channelId);
+    },
+    removeChannel: (channelId) => {
+        communicationAPI.channels[channelId].destroy();
+        delete communicationAPI.channels[channelId];
+    },
+    sendInput: (channelId, inputString, options) => {
+        communicationAPI.channels[channelId].sendInput(inputString, options);
+    },
+    sendSignal: (channelId, signal) => {
+        communicationAPI.channels[channelId].sendSignal(signal);
+    },
+    sendCommand: (channelId, commandString) => {
+        communicationAPI.channels[channelId].sendCommand(commandString);
+    },
+    onSerializedMessage: (channelId, callback) => {
+        communicationAPI.channels[channelId].onSerializedMessage(callback);
+    },
+    removeSerializedMessageListener: (channelId, callback) => {
+        communicationAPI.channels[channelId].removeSerializedMessageListener(callback);
+    },
+    onScriptSpawned: (channelId, callback) => {
+        communicationAPI.channels[channelId].onScriptSpawned(callback);
+    }
+};
+
+contextBridge.exposeInMainWorld('communicationAPI', communicationAPI);
