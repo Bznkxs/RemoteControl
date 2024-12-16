@@ -147,7 +147,12 @@ class Channel {
 
     onEvent(channelName, callback) {
         const listener = (event, arg) => {
-            callback(arg);
+            try {
+                callback(arg);
+            } catch (e) {
+                console.log(e, e.stack);
+            }
+
         }
         ipcRenderer.on(channelName, listener);
         this.callbacks.push([channelName, listener]);

@@ -5,9 +5,8 @@ const {TerminalInterface} = require("./terminal_interface");
 
 const requireESM = require('esm')(module);
 const {Log} = requireESM("../shared/message_log");
-const {TerminalTextLogMessage} = require("../shared/message_log");
-const {TextClass} = require("../shared/text_class");
-const {TerminalCommandLogMessage} = require("../shared/message");
+const {TextClass} = requireESM("../shared/text_class");
+const {TerminalCommandLogMessage, TerminalTextLogMessage} = requireESM("../shared/message");
 class Channel {
     constructor(window, channelName) {
         this.window = window;
@@ -73,6 +72,7 @@ class ConversationHandler {
     }
 
     addConversation(channelName) {
+        console.log("[ConversationHandler] Received channel creation", channelName)
         const conversation = {
             channel: new Channel(this.window, channelName),
             commandProcessor: new CommandProcessor(),
@@ -84,18 +84,21 @@ class ConversationHandler {
             conversation.commandProcessor.sendToChild(text);
             const message = TerminalTextLogMessage.createMessageWithCurrentTime(text, TextClass.INPUT, true, options.password);
             conversation.messageLog.log(message);
+            conversation.channel.sendMessage(message);
         })
 
         conversation.channel.onSendCommand((text) => {
             const message = TerminalCommandLogMessage.createTimedCommandMessage(text);
             conversation.commandProcessor.createChildProcess(message.command, message.args);
             conversation.messageLog.log(message);
+            conversation.channel.sendMessage(message);
         })
 
         conversation.channel.onSendSignal((signal) => {
             conversation.commandProcessor.killChildProcess(signal);
             const message = TerminalTextLogMessage.createMessageWithCurrentTime(signal, TextClass.SIGNAL);
             conversation.messageLog.log(message);
+            conversation.channel.sendMessage(message);
         })
 
         const processOutputData = (rawOutput) => {
@@ -125,3 +128,5 @@ class ConversationHandler {
 
 
 }
+
+module.exports = {ConversationHandler};

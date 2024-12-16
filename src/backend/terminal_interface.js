@@ -1,7 +1,8 @@
-import {SimpleTerminal} from "../simpleAnsiTerminal/simple_terminal.js";
+const {SimpleTerminal} = require("../simpleAnsiTerminal/simple_terminal.js");
+const AnsiParser = require('node-ansiparser');
 
 class TerminalInterface {
-    constructor(terminalArgs) {
+    constructor(...terminalArgs) {
         this.terminal = new SimpleTerminal(...terminalArgs);
         this.parser = new AnsiParser(this.terminal);
     }

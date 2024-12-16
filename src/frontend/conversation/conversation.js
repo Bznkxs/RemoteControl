@@ -68,7 +68,7 @@ class BaseConversation {
             this.contentListener(message);
         }
         else if (message.textClass.isExitCode()) {
-            this.exitCodeListener(message);
+            this.exitCodeListenerCore(message);
         }
     }
 
@@ -76,7 +76,7 @@ class BaseConversation {
     commandListener = () => {}
     signalListener = () => {}
     contentListener = () => {}
-    exitCodeListener = (message) => { this.exitCodeListeners.forEach((listener) => listener(message)); }
+    exitCodeListenerCore = (message) => { this.exitCodeListeners.forEach((listener) => listener(message)); }
 
     onExitCode = (callback) => {
         this.exitCodeListeners.push(callback);
@@ -147,10 +147,10 @@ class VisualizedConversation extends BaseConversation {
 
     }
 
-    exitCodeListener = (message) => {
+    exitCodeListenerCore = (message) => {
         this.conversationWindow.exitCodeListener(message);
-        super.exitCodeListener(message);
-    }
+        super.exitCodeListenerCore(message);
+    };
 
 
     /**
@@ -159,8 +159,9 @@ class VisualizedConversation extends BaseConversation {
      * @param strictCheck
      * @returns {boolean}
      */
-    setEOLWithoutSync(eol, strictCheck=false) {
-        return super.setEOL(eol, strictCheck);
+    setEOLWithoutSync = (eol, strictCheck=false) => {
+        console.log("[VisualizedConversation] Set EOL", this, eol, strictCheck)
+        return this.setEOL(eol, strictCheck);
     }
 
     /**
@@ -168,7 +169,7 @@ class VisualizedConversation extends BaseConversation {
      * @param eol
      * @param strictCheck
      */
-    setEOL(eol, strictCheck=false) {
+    setEOLWithSync(eol, strictCheck=false) {
         console.log("Set EOL", eol, strictCheck)
         if (this.setEOLWithoutSync(eol, strictCheck)) {
             this.conversationWindow.syncEOL(eol);

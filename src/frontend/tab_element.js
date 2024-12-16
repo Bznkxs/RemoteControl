@@ -47,30 +47,31 @@ export class TabPageElementWrapper {
         }
     }
 
-    changeTabName(newName) {
+    changeTabName = (newName) => {
+        console.log("[TabPageElementWrapper] Change tab name", this.tabLabelElement, newName)
         this.tabLabelElement.textContent = newName;
     }
 
-    hide() {
+    hide = () => {
         toggleElementVisibility(this.tabContentElement, false);
     }
 
-    show() {
+    show = () => {
         toggleElementVisibility(this.tabContentElement, true);
     }
 
-    select() {
+    select = () => {
         this.tabLabelElement.classList.add("active");
         this.tabLabelElement.classList.remove("remind");
         this.show();
     }
 
-    unselect() {
+    unselect = () => {
         this.tabLabelElement.classList.remove("active");
         this.hide();
     }
 
-    destroy() {
+    destroy = () => {
         if (this.destroyed) {
             return false;
         }
@@ -103,7 +104,7 @@ export class TabElementWrapper {
         this.tabs = [];
     }
 
-    createTab(tabName, id=null, showTab=true) {
+    createTab = (tabName, id=null, showTab=true) => {
         const tabContentElementWrapper = new TabPageElementWrapper(this, tabName, id, this);
         this.pushTab(tabContentElementWrapper);
         if (showTab) {
@@ -114,7 +115,7 @@ export class TabElementWrapper {
         return tabContentElementWrapper;
     }
 
-    pushTab(tab, showTab=true) {
+    pushTab = (tab, showTab=true) => {
         if (this.tabs.includes(tab)) {
             return;
         }
@@ -126,21 +127,21 @@ export class TabElementWrapper {
         }
     }
 
-    selectTab(tab) {
+    selectTab = (tab) => {
         this.tabs.forEach((tab) => {
             tab.unselect();
         });
         tab.select();
     }
 
-    removeTabByIndex(tabIndex) {
+    removeTabByIndex = (tabIndex) => {
         if (tabIndex < 0 || tabIndex >= this.tabs.length) {
             return;
         }
         this.tabs[tabIndex].destroy();
     }
 
-    removeTab(tab) {
+    removeTab = (tab) => {
         tab.destroy();
         this.tabs = this.tabs.filter((tab) => tab !== tab);
     }

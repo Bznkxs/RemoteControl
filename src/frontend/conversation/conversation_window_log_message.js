@@ -61,6 +61,10 @@ export class ConversationWindowLogMessage {
     }
 
     static inferArgStyleFromText(text) {
+        console.log("[ConversationWindowLogMessage] Infer arg style from text", text)
+        if (typeof text !== 'string') {
+            return 'default';
+        }
         if (text.startsWith('$')) {
             return 'variable';
         } else if (!isNaN(text)) {
@@ -94,7 +98,7 @@ export class ConversationWindowLogMessage {
                 messageContentElement.classList.add(contentElementClassForCommand);
                 const contentElement = this.constructor.createContentElement("Process finished with exit code", 'exitCode');
                 messageContentElement.appendChild(contentElement);
-                const exitCodeElement = this.constructor.createContentElement(message.text);
+                const exitCodeElement = this.constructor.createContentElement(String(message.text.exitCode));
                 messageContentElement.appendChild(exitCodeElement);
             } else {
                 messageContentElement.classList.add(contentElementClassForMessage);
@@ -146,8 +150,16 @@ export class ConversationWindowLogMessage {
             const message = this.getMessage();
             let htmlSnippet = message.text;
             if (message.textClass.v === TextClass.CONTENT.v && this.parseANSI) {
+                console.log("[ConversationWindowLogMessage] Parsing ANSI for message", message.text)
                 if (message.ansiOutputStream !== null && message.ansiOutputStream !== undefined) {
-                    htmlSnippet = visualizeAnsiOutputStream(message.ansiOutputStream);
+                    const {frag, otherReturnMessages} = visualizeAnsiOutputStream(message.ansiOutputStream);
+                    console.log("[ConversationWindowLogMessage] Parsed ANSI", frag, otherReturnMessages)
+                    if (frag === null) {
+                        this.generateMessage = false;
+                    } else {
+                        htmlSnippet = frag;
+                    }
+                    this.otherReturnMessages = otherReturnMessages;
                 }
                 else this.generateMessage = false;
             }
@@ -228,6 +240,16 @@ export class ConversationWindowLogMessage {
             messageElement.appendChild(metaElement);
             const messageContentContainer = this.getMessageContentElement();
             messageElement.appendChild(messageContentContainer);
+
+            const comment = document.createComment("message.text");
+            messageElement.appendChild(comment);
+
+            const rawMessage = String(this.getMessage().text);
+            rawMessage.split('\n').forEach((line) => {
+                const comment = document.createComment(line);
+                messageElement.appendChild(comment);
+            })
+
             this.messageElement = messageElement;
             if (this.generateMessage === false) {
                 this.messageElement = null;
@@ -259,7 +281,7 @@ export class ConversationWindowLogMessage {
                 this.mergedBlockTopBeautifiedMessage = previous.getMergedBlockTopBeautifiedMessage();
                 this.mergedBlockTopBeautifiedMessage.difference += 1;
             }
-            console.log("GetMergedBlockTopBeautifiedMessage", this.getMessage().text, this.mergedBlockTopBeautifiedMessage.message.getMessage().text, this.mergedBlockTopBeautifiedMessage.difference);
+            console.log("[ConversationWindowLogMessage] GetMergedBlockTopBeautifiedMessage", this.getMessage().text, this.mergedBlockTopBeautifiedMessage.message.getMessage().text, this.mergedBlockTopBeautifiedMessage.difference);
         }
         return this.mergedBlockTopBeautifiedMessage;
     }
@@ -283,7 +305,7 @@ export class ConversationWindowLogMessage {
         else {
             this.mergeWithPrevious = false;
         }
-        console.log("Message.mergeWithPrevious", this.getMessage().text, this.mergeWithPrevious, this.checkIfContinuousMessage());
+        console.log("[ConversationWindowLogMessage] Message.mergeWithPrevious", this.getMessage().text, this.mergeWithPrevious, this.checkIfContinuousMessage());
         return this.mergeWithPrevious;
     }
 
@@ -293,7 +315,7 @@ export class ConversationWindowLogMessage {
         }
         const previous = this.previousMessage;
         this.continuousMessage = previous ? previous.getMessage().textClass.v === TextClass.CONTENT.v && this.getMessage().textClass.v === TextClass.CONTENT.v : false;
-        console.log("Checking if continuous message", this.getMessage().text, this.previousMessage && this.previousMessage.getMessage().textClass.v, this.continuousMessage);
+        console.log("[ConversationWindowLogMessage] Checking if continuous message", this.getMessage().text, this.previousMessage && this.previousMessage.getMessage().textClass.v, this.continuousMessage);
         return this.continuousMessage;
     }
 

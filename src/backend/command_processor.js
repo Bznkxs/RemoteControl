@@ -1,4 +1,4 @@
-import {BaseChildProcessWrapper, ChildProcessWrapper} from "./child_process_wrapper.js";
+const {BaseChildProcessWrapper, ChildProcessWrapper} = require("./child_process_wrapper.js");
 
 const defaultListeners = {
     onSpawnedCallback: null,

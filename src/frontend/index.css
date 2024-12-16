@@ -10,8 +10,8 @@ body {
 }
 
 .tab {
-  height: 90%;
-  width: 90%;
+  height: 100%;
+  width: 95%;
   display: flex;
   flex-direction: column;
   align-content: center;
@@ -21,6 +21,11 @@ body {
 
 .tab-head {
   height: 10%;
+}
+
+.tab-body {
+    height: 90%;
+
 }
 
 .log-section {

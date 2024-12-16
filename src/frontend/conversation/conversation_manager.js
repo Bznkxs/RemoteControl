@@ -68,6 +68,7 @@ class ConversationManager {
                 this.communicationAPI.onScriptSpawned(channel.id, callback);
             }
         }
+        console.log("[ConversationManager] Creating channel", channel.id)
         this.communicationAPI.createChannel(channel.id);
         this.channelsReference.push(channel);  // ConversationManager does not own channels
         return channel;

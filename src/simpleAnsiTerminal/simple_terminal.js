@@ -60,25 +60,25 @@ class SimpleTerminal extends AnsiTerminal {
 
     
     locatePosition(row, col, print=false) {
-        console.log("Locate position", row, col, this.rows, this.cols, typeof this.rows, typeof this.cols)
+        // console.log("Locate position", row, col, this.rows, this.cols, typeof this.rows, typeof this.cols)
         // get the required row and col in outputSequence
         let currentRow = this.accountRowOffsetForScrollBack();
         let currentCol = 0;
 
 
         row += currentRow;
-        console.log("Accounting for scrollback", row, col, currentRow)
-        console.log("current outputSequence", this.outputSequence)
+        // console.log("Accounting for scrollback", row, col, currentRow)
+        // console.log("current outputSequence", this.outputSequence)
         let logBuffer = "";
         for (let i = 0; i < this.outputSequence.length; i++) {
-            console.log("i:", i, typeof i);
+            // console.log("i:", i, typeof i);
             let element = this.outputSequence[i];
             if (element.lines) {
                 if (currentRow + element.lines.length > row) {
                     // it's in this element. We should count the number of characters in the lines
                     let index = 0;
                     for (let j = 0; j < element.lines.length; j++) {
-                        console.log("j:", j, typeof j);
+                        // console.log("j:", j, typeof j);
                         // if (print) {
                         //     if (currentRow + j === row - 1) {
                         //         logBuffer += element.lines[j] + '\n';
@@ -90,7 +90,7 @@ class SimpleTerminal extends AnsiTerminal {
                             if (currentCol + line.length > col) {
                                 if (print) {
                                     // console.log(logBuffer);
-                                    console.log(element, j, currentRow, currentCol, row, col, line.length)
+                                    // console.log(element, j, currentRow, currentCol, row, col, line.length)
                                 }
                                 return {
                                     elementIndex: i,
@@ -109,7 +109,7 @@ class SimpleTerminal extends AnsiTerminal {
                                 } else {  // we have found the row, but the row is not that long
                                     if (print) {
                                         // console.log(logBuffer);
-                                        console.log(element, j, currentRow, currentCol, row, col, line.length)
+                                        // console.log(element, j, currentRow, currentCol, row, col, line.length)
                                     }
                                     return {
                                         elementIndex: i,
@@ -175,7 +175,7 @@ class SimpleTerminal extends AnsiTerminal {
     }
 
     extendToPositionWithWhiteSpace({row, col, position}) {
-        console.log("Extend to position with white space", row, col)
+        // console.log("Extend to position with white space", row, col)
         if (!position)
             position = this.locatePosition(row, col);
         let element;
@@ -183,7 +183,7 @@ class SimpleTerminal extends AnsiTerminal {
         let elementClass = styles[0] || "";
         let elementStyle = styles[1] || "";
         if (position.elementIndex === null) {  // the position is not in the outputSequence; create a new element
-            console.log("Create a new element")
+            // console.log("Create a new element")
             element = {
                 text: "",
                 styleValue: String(this.charattributes) + "@" + String(this.colors) + "@" + String(false),
@@ -193,14 +193,14 @@ class SimpleTerminal extends AnsiTerminal {
             this.addElementToOutputSequence(element);
             position.elementIndex = this.outputSequence.length - 1;
         } else {
-            console.log("Old element:", this.outputSequence[position.elementIndex].text)
+            // console.log("Old element:", this.outputSequence[position.elementIndex].text)
         }
         element = this.outputSequence[position.elementIndex];
         let line = element.lines[position.lineIndex];
         let charIndex = position.charIndex;
         let trailingCol = position.trailingCol;
         let trailingRow = position.trailingRow;
-        console.log(position)
+        // console.log(position)
         if (trailingRow === 0 && trailingCol === 0) {
             return;
         }
@@ -214,7 +214,7 @@ class SimpleTerminal extends AnsiTerminal {
                 " ".repeat(trailingCol) +
                 element.text.slice(position.charIndex);
         }
-        console.log("After extendToPositionWithWhiteSpace", element.text)
+        // console.log("After extendToPositionWithWhiteSpace", element.text)
         this.maintainOutputElement(element);
     }
 
@@ -253,20 +253,20 @@ class SimpleTerminal extends AnsiTerminal {
         }
 
         this.endsWithNewLine = endsWithNewLine;
-        console.log("streamOut", continuousMessage, stream, newStartIndex)
+        // console.log("streamOut", continuousMessage, stream, newStartIndex)
         return {outputSequence: stream, newStartIndex, previousEndsWithNewLine: returnPreviousEndsWithNewLine,
         endsWithNewLine};
     }
     
     inst_p(s) {
         if (this.moveCursor) {
-            console.log("Move cursor", s)
+            // console.log("Move cursor", s)
             this.moveCursor(s);
             this.moveCursor = null;
         }
         let text = s;
         let styles = getStyles(this.charattributes, this.colors, false);
-        console.log("Styles", styles)
+        // console.log("Styles", styles)
         let elementClass = styles[0] || "";
         let elementStyle = styles[1] || "";
         let textBlock = {
@@ -371,10 +371,10 @@ class SimpleTerminal extends AnsiTerminal {
                 case 'X':
                 case 'H':
                     super.inst_c(collected, params, flag);
-                    console.log(this.charattributes);
-                    console.log(this.textattributes);
-                    console.log(this.reverse_video);
-                    console.log(this.colors);
+                    // console.log(this.charattributes);
+                    // console.log(this.textattributes);
+                    // console.log(this.reverse_video);
+                    // console.log(this.colors);
                     return;
             }
 
@@ -413,7 +413,7 @@ class SimpleTerminal extends AnsiTerminal {
         const lastElement = this.getLastOutputElement();
         const erase = ((params[0]) ? params[0] : 1);
         if (lastElement && lastElement.actionClass === "CUP") {  // erase characters from the cursor position
-            console.log("lastElement", lastElement)
+            // console.log("lastElement", lastElement)
             const row = lastElement.actionArgs.row;
             const col = lastElement.actionArgs.col;
             const position = this.locatePosition(row, col);
@@ -465,7 +465,7 @@ class SimpleTerminal extends AnsiTerminal {
         const row = ((params) ? (params[0] || 1) : 1) - 1;
         const col = ((params) ? (params[1] || 1) : 1) - 1;
         const position = this.locatePosition(row, col, true);
-        console.log("CUP", position, row, col, this.outputSequence.length)
+        // console.log("CUP", position, row, col, this.outputSequence.length)
         const {elementIndex, lineIndex, charIndex, colIndex, trailingCol, trailingRow} = position;
         const defaultFallback = () => {
             this.addElementToOutputSequence({
@@ -478,13 +478,13 @@ class SimpleTerminal extends AnsiTerminal {
         if (elementIndex && trailingRow === 0) {  // the position is in one of the existing elements
             if (elementIndex < this.lastMergedStreamTailLine) {  // the position falls in the scrollback buffer
 
-                console.log("inside CUP", position, this.lastTextElementIndex, this.outputSequence[elementIndex].text.length - 1);
+                // console.log("inside CUP", position, this.lastTextElementIndex, this.outputSequence[elementIndex].text.length - 1);
                 return defaultFallback();
 
 
             } else {  // the position falls in the current buffer; we need to check if position is not at the last line of the text
                 let allEmptyLineAfter = true;  // check if all lines after the position are empty
-                console.log("Check all empty lines after", lineIndex, this.outputSequence[elementIndex].lines.length)
+                // console.log("Check all empty lines after", lineIndex, this.outputSequence[elementIndex].lines.length)
                 let newLineIndex = 1;
                 let charsInLineAfterPosition = this.outputSequence[elementIndex].lines[lineIndex].slice(colIndex);
                 for (let i = lineIndex + 1; i < this.outputSequence[elementIndex].lines.length; i++) {
@@ -540,7 +540,7 @@ class SimpleTerminal extends AnsiTerminal {
                 }
             }
         }
-        console.log("outside CUP", position, this.lastTextElementIndex, elementIndex === null? null:this.outputSequence[elementIndex].text.length - 1)
+        // console.log("outside CUP", position, this.lastTextElementIndex, elementIndex === null? null:this.outputSequence[elementIndex].text.length - 1)
         this.moveCursor = () => {this.extendToPositionWithWhiteSpace({row, col, position});}  // fill the gap with white space
     }
 

@@ -31,11 +31,24 @@ class ChildProcessWrapper extends BaseChildProcessWrapper {
     }
 
     sendToChild = (data) => {
-        this.childProcess.write(data);
+        if (this.isRunning()) {
+            this.childProcess.write(data);
+        }
+
     }
 
     kill = () => {
-        if (this.isProcessRunning) this.childProcess.kill();
+        if (this.isRunning()) {
+            try {
+                console.log("[ChildProcessWrapper] Killing child process", this.childProcess.pid)
+                this.isProcessRunning = false;  // to avoid multiple kill calls
+                this.childProcess.removeAllListeners();
+                process.kill(this.childProcess.pid);  // to avoid EPipe error
+            }
+            catch (e) {
+                console.log("[ChildProcessWrapper] Error killing child process", e)
+            }
+        }
     }
 
     onStdout = (callback) => {
@@ -44,7 +57,7 @@ class ChildProcessWrapper extends BaseChildProcessWrapper {
     }
 
     onStderr = (callback) => {
-        callback("[Warning] Stderr is not supported in node-pty")
+        console.warn("[ChildProcessWrapper] Warning: Stderr is not supported in node-pty")
     }
 
     onExit = (callback) => {
@@ -52,13 +65,14 @@ class ChildProcessWrapper extends BaseChildProcessWrapper {
         this.childProcess.onExit(callback);
     }
 
-    defaultOnExitListener = (code) => {
+    defaultOnExitListener = (e) => {
         this.isProcessRunning = false;
-        this.returnCode = code;
+        this.returnCode = e;
+        console.log("[ChildProcessWrapper] Process exited with code", e);
     }
 
     isRunning = () => {
-        return this.isProcessRunning;
+        return this.isProcessRunning && !this.childProcess.killed;
     }
 }
 

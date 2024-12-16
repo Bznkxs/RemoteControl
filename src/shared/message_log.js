@@ -26,3 +26,5 @@ class Log {
         this.removeAllMessagesOnlyWithoutDisplay();
     }
 }
+
+module.exports = {Log};

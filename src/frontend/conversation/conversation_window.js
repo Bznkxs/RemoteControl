@@ -8,9 +8,8 @@ import {ConversationWindowLogMessage} from "./conversation_window_log_message.js
 import {TabPageElementWrapper} from "../tab_element.js";
 
 export class ConversationWindow extends TabPageElementWrapper {
-
     constructor(conversationName, id, conversationTabElementWrapper, eolGetter=null,
-                initialValues={command: "", stdin: ""}) {
+                {command="", stdin=""}={}) {
         super(conversationTabElementWrapper, conversationName, id);
         const logTabContent = this.tabContentElement;
 
@@ -38,6 +37,7 @@ export class ConversationWindow extends TabPageElementWrapper {
         inputContainer.appendChild(commandInputLabel);
         inputContainer.appendChild(commandInput);
         this.commandInput = commandInput;
+        console.log("[ConversationWindow] Command input created", commandInput)
         const stdinInput = document.createElement("input");
         stdinInput.id = id + "-stdin-input";
         stdinInput.type = "text";
@@ -136,14 +136,27 @@ export class ConversationWindow extends TabPageElementWrapper {
             }
         }
 
+        this.deserializeEOL = (eolString) => {
+            try {
+                return JSON.parse('"' + eolString + '"');
+            } catch (e) {
+                return null;
+            }
+        }
+
         this.eolInput.addEventListener("input", () => {
 
-            const eol = this.eolInput.value;
-            console.log("[ConversationWindow] EOL input changed to: " + eol)
-            this.changeEOL(eol);
+            const EOLFromInput = this.eolInput.value;
+            const eol = this.deserializeEOL(EOLFromInput);
+            if (this.changeEOL(eol)) {
+                console.log("[ConversationWindow] EOL input changed to: " + this.stringifyEOL(eol))
+            };
         })
 
         this.commandInput.addEventListener("input", this.syncCommandButtonEnabled);
+        this.commandInput.addEventListener("input", () => {
+            this.changeEOLBasedOnCommand(this.commandInput.value);
+        })
 
         this.conversationContainer.addEventListener("scroll", () => {
             updateElementInfoForScrollToBottom(this.conversationContainer);
@@ -167,8 +180,8 @@ export class ConversationWindow extends TabPageElementWrapper {
             {childList: true, attributes: true, subtree: true});
 
         // initialize values
-        this.stdinInput.value = initialValues.stdin;
-        this.commandInput.value = initialValues.command;
+        this.stdinInput.value = stdin;
+        this.commandInput.value = command;
         updateElementInfoForScrollToBottom(this.conversationContainer);
         toggleElementEnabled(this.stdinInput, false);
         toggleElementEnabled(this.sendButton, false);
@@ -200,7 +213,6 @@ export class ConversationWindow extends TabPageElementWrapper {
     }
 
     setEOLGetter = (eolGetter) => {
-        console.log("[ConversationWindow] EOL getter set", eolGetter, new Error().stack)
         if (eolGetter) {
             this.getEOL = eolGetter;
         } else {
@@ -212,17 +224,18 @@ export class ConversationWindow extends TabPageElementWrapper {
         this.syncEOL(this.getEOL());
     }
 
-    registerGlobalEventListener(element, eventName, callback) {
+    registerGlobalEventListener = (element, eventName, callback) => {
         element.addEventListener(eventName, callback);
         this.globalEventListeners.push([element, eventName, callback]);
     }
 
-    syncCommandButtonEnabled() {
+    syncCommandButtonEnabled = () => {
+        console.log("[ConversationWindow] Syncing command button enabled", this.commandInput)
         toggleElementEnabled(this.commandButton, this.commandInput.value.length > 0
             && this.commandButtonNotForceDisabled);
     }
 
-    destroy() {
+    destroy = () => {
         if (super.destroy()) {
             for (const [element, eventName, callback] of this.globalEventListeners) {
                 element.removeEventListener(eventName, callback);
@@ -231,19 +244,36 @@ export class ConversationWindow extends TabPageElementWrapper {
 
     }
 
+
     addMessage = (message) => {
+        console.log("[ConversationWindow] Adding message", message)
         const windowLogMessage = new ConversationWindowLogMessage(message);
         if (this.windowLogMessages.length > 0) {
             const lastWindowLogMessage = this.windowLogMessages[this.windowLogMessages.length - 1];
             windowLogMessage.provideLogInfo({previousMessage: lastWindowLogMessage});
         }
+
         const logMessageElement = windowLogMessage.beautifiedMessage;
+
+        console.log("[ConversationWindow] Added message, got otherReturnMessages", windowLogMessage.otherReturnMessages)
+        if (windowLogMessage.otherReturnMessages) {
+            windowLogMessage.otherReturnMessages.forEach((otherReturnMessage) => {
+                if (otherReturnMessage.action === "set-title") {
+                    this.changeTabName(otherReturnMessage.text);
+                }
+            });
+        }
+
         if (logMessageElement) {
             if (windowLogMessage.checkIfMergeWithPrevious()) {
                 // hide meta info
                 logMessageElement.classList.add('mergedWithPrevious');
             }
             this.conversationContainer.appendChild(logMessageElement);
+            if (message.password) {
+                const button = logMessageElement.getElementsByClassName('contentVisibilityButton')[0];
+                button.click();
+            }
             this.windowLogMessages.push(windowLogMessage);
         }
     }
@@ -261,7 +291,7 @@ export class ConversationWindow extends TabPageElementWrapper {
     }
 
     stringifyEOL = (eol) => {
-        return JSON.stringify(eol).replaceAll('"', '');
+        return JSON.stringify(eol).replaceAll('"', '') || "\"\"";
     }
 
     /**
@@ -280,7 +310,7 @@ export class ConversationWindow extends TabPageElementWrapper {
      */
     updateEOLDisplay = (eol) => {
         if (this.eolInput.value !== this.stringifyEOL(eol)) {
-            this.eolInputLabel.textContent = "Using EOL: " + eol;
+            this.eolInputLabel.textContent = "Using EOL: " + this.stringifyEOL(eol);
             this.eolInputLabel.classList.add("error");
         } else {
             this.eolInputLabel.textContent = "";
@@ -293,13 +323,14 @@ export class ConversationWindow extends TabPageElementWrapper {
      * @param eol
      */
     changeEOL = (eol) => {
-        console.log("[ConversationWindow] EOL changed to: " + eol)
+        console.log("[ConversationWindow] EOL changed to: " + this.stringifyEOL(eol))
         const allowChange = this.changeEOLListener(eol);
         if (allowChange) {
             this.updateEOLDisplay(eol);
         } else {
             this.updateEOLDisplay(this.getEOL());
         }
+        return allowChange;
     }
 
     onChangeEOL = (callback) => {
@@ -308,5 +339,17 @@ export class ConversationWindow extends TabPageElementWrapper {
 
     clear = () => {
         this.conversationContainer.innerHTML = "";
+    }
+
+    changeEOLBasedOnCommand = (command) => {
+        if (command.startsWith('powershell.exe')) {
+            this.changeEOL("\r");
+        }
+        if (command.startsWith('cmd.exe')) {
+            this.changeEOL("\r");
+        }
+        if (command.startsWith('ssh')) {
+            this.changeEOL("\n");
+        }
     }
 }

@@ -13,11 +13,13 @@ export function visualizeAnsiOutputStream(ansiOutputStream) {
             return;
         }
         if (output.actionClass === "set-title") {
-            otherReturnMessages.push({action: "set-title", text});
+
+            otherReturnMessages.push({action: "set-title", text: output.actionArgs});
             return;
         }
 
         endsWithNewLine = text.endsWith("\n");
+
 
         if (text.startsWith("\n") && !frag && !previousEndsWithNewLine) {
             text = text.substring(1);

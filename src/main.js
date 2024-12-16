@@ -25,6 +25,7 @@ const createWindow = () => {
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
+  const conversationHandler = new (require('./backend/conversation_handler').ConversationHandler)(mainWindow);
 };
 
 // This method will be called when Electron has finished
@@ -53,40 +54,40 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
-
-const {Command} = require ("./backend/command");
-const {CommandPTY} = require ("./backend/command_pty");
-
-let command;
-ipcMain.on("change-command", (event, arg) => {
-    console.log(`Changing command to ${arg}`);
-    if (command) {
-        command.destroy();
-    }
-    if (arg === "default") {
-        command = new Command();
-    } else if (arg === "pty") {
-        command = new CommandPTY();
-    }
-    // list listener of ipcMain signal 'run-script'
-    // console.log("Listeners of 'run-script':")
-    // ipcMain.listeners('run-script').forEach((listener) => {
-    //     console.log(listener);
-    // });
-});
-
-
-const { getAnsiTerminalInfo, getSimpleTerminalInfo } = require('./backend_terminal_parsing');
-
-
-ipcMain.on("get-ansi-terminal", (event, data) => {
-    // console.log(`Parsing ANSI data`);
-    event.returnValue = getAnsiTerminalInfo(command, data);
-});
-
-ipcMain.on("get-simple-terminal", (event, data) => {
-    event.returnValue = getSimpleTerminalInfo(data);
-});
+//
+// const {Command} = require ("./backend/command");
+// const {CommandPTY} = require ("./backend/command_pty");
+//
+// let command;
+// ipcMain.on("change-command", (event, arg) => {
+//     console.log(`Changing command to ${arg}`);
+//     if (command) {
+//         command.destroy();
+//     }
+//     if (arg === "default") {
+//         command = new Command();
+//     } else if (arg === "pty") {
+//         command = new CommandPTY();
+//     }
+//     // list listener of ipcMain signal 'run-script'
+//     // console.log("Listeners of 'run-script':")
+//     // ipcMain.listeners('run-script').forEach((listener) => {
+//     //     console.log(listener);
+//     // });
+// });
+//
+//
+// const { getAnsiTerminalInfo, getSimpleTerminalInfo } = require('./backend_terminal_parsing');
+//
+//
+// ipcMain.on("get-ansi-terminal", (event, data) => {
+//     // console.log(`Parsing ANSI data`);
+//     event.returnValue = getAnsiTerminalInfo(command, data);
+// });
+//
+// ipcMain.on("get-simple-terminal", (event, data) => {
+//     event.returnValue = getSimpleTerminalInfo(data);
+// });
 
 
 ipcMain.on("read-file", (event, path) => {
