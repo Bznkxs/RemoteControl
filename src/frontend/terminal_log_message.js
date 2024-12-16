@@ -1,1 +1,0 @@
-// module.exports = { TextClass, TerminalTextLogMessage, TerminalCommandLogMessage };

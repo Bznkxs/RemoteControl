@@ -29,29 +29,11 @@
 
 // Imports
 
-// const {
-//     TerminalTextLogMessage, TextClass,
-//     getMessageFromInputElement, getCommandFromInputElement,
-//     Log, TerminalCommandLogMessage
-// } = window.frontendAPI;
 
-// import {getCommandFromInputElement, getMessageFromInputElement} from "./get_message_from_element.js";
-// import {Log} from "./terminal_log.js";
 import {RemoteControlContext} from "./automaton/context.js";
-import {deserializeFunction} from "./serialize_deserialize.js";
-// import {SimpleANSIParsingLog} from "./ansi_parsing_terminal_log.js";
-// import {parseTerminalMessageText} from "./parse_terminal_ansi_message.js";
-// import {TextClass} from "../shared/text_class.js";
-// import {TerminalTextLogMessage} from "../shared/message.js";
-// import {
-//     maintainScrollToBottom, remindTabLabel,
-//     toggleElementEnabled,
-//     toggleElementVisibility,
-//     updateElementInfoForScrollToBottom
-// } from "./element_utils";
-import {TabElementWrapper} from "./tab_element.js";
+import {deserializeFunction} from "./automaton/serialize_deserialize.js";
+import {TabElementWrapper} from "./elements/tab_element.js";
 import {VisualizedConversationManager} from "./conversation/conversation_manager.js";
-// import {Terminal} from "node-pty/src/terminal";
 
 console.log('👋 This message is being logged by "renderer.js", included via webpack');
 
@@ -161,7 +143,7 @@ function setRemoteControlSequence(commandSeqString, proxyContext) {
     });
 }
 
-fileInput.value="exampleStorage/ssh_dai.js"
+fileInput.value="test/ssh_dai.js"
 
 
 // proxy
@@ -171,8 +153,13 @@ const proxyContext = new RemoteControlContext({
     readFile: window.electronAPI.readFileSync,
     listeners: [],
     onData: function(callback) {
-        conversation.onMessage(callback);
-        this.listeners.push(['script-stdout', callback]);
+        const realCallback = (data) => {
+            if (data.textClass.isContent()) {
+                callback(data.text);
+            }
+        }
+        conversation.onMessage(realCallback);
+        this.listeners.push(['script-stdout', realCallback]);
         console.log("OnData add listener", this.listeners);
 
     },
@@ -209,6 +196,7 @@ loadFileButton.addEventListener("click", () => {
     setRemoteControlSequence(content, proxyContext);
 });
 
+loadFileButton.click();
 
 
 

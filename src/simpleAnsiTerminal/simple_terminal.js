@@ -55,6 +55,10 @@ class SimpleTerminal extends AnsiTerminal {
         } else if (position === "relative") {  // what is the relative row on the screen?
             currentRow = Math.min(this.rows - 1, currentRow);
         }
+        if (isNaN(currentRow)) {
+            console.log(this.rows, currentRow, position, this.outputSequence)
+            throw new Error("currentRow is not a number (account)", );
+        }
         return currentRow;
     }
 
@@ -63,6 +67,10 @@ class SimpleTerminal extends AnsiTerminal {
         // console.log("Locate position", row, col, this.rows, this.cols, typeof this.rows, typeof this.cols)
         // get the required row and col in outputSequence
         let currentRow = this.accountRowOffsetForScrollBack();
+        if (isNaN(currentRow) ) {
+            console.log("currentRow", currentRow, this.outputSequence)
+            throw new Error("currentRow is not a number (first)");
+        }
         let currentCol = 0;
 
 
@@ -129,7 +137,16 @@ class SimpleTerminal extends AnsiTerminal {
                     // the only way this can happen is that the row
                     // is in the last line, but the col falls outside
                 }
+                if (isNaN(currentRow) ) {
+                    console.log("currentRow", currentRow, i, element, element.lines, this.outputSequence)
+                    throw new Error("currentRow is not a number (before)");
+                }
                 currentRow += element.lines.length - 1;
+                if (isNaN(currentRow) ) {
+                    console.log("currentRow", currentRow, i, element, element.lines, element.lines.length - 1, this.outputSequence)
+                    throw new Error("currentRow is not a number");
+
+                }
             }
         }
         // the row is not in the outputSequence
@@ -178,6 +195,9 @@ class SimpleTerminal extends AnsiTerminal {
         // console.log("Extend to position with white space", row, col)
         if (!position)
             position = this.locatePosition(row, col);
+        if (row === 24 && col === 0) {
+            console.log("[SimpleTerminal] Extend to position with white space", row, col, position)
+        }
         let element;
         let styles = getStyles(this.charattributes, this.colors, false);
         let elementClass = styles[0] || "";
@@ -225,7 +245,7 @@ class SimpleTerminal extends AnsiTerminal {
         let stream;
         let newStartIndex = 0;
         let returnPreviousEndsWithNewLine = this.previousEndsWithNewLine;
-        let sliceStart = 0;
+        let sliceStart;
         if (continuousMessage) {
             stream = this.outputSequence.slice(sliceStart = this.lastMergedStreamTailLine);
             newStartIndex = this.streamTailLine - this.lastMergedStreamTailLine;
@@ -245,9 +265,10 @@ class SimpleTerminal extends AnsiTerminal {
             }
         }
         returnPreviousEndsWithNewLine = true;
-        for (let i = Math.min(sliceStart, this.outputSequence.length - 1); i >= 0; i--) {
+        for (let i = Math.min(sliceStart - 1, this.outputSequence.length - 1); i >= 0; i--) {
             if (this.outputSequence[i].lines) {
                 returnPreviousEndsWithNewLine = this.outputSequence[i].text.endsWith("\n");
+                // console.log("[SimpleTerminal] returnPreviousEndsWithNewLine", returnPreviousEndsWithNewLine)
                 break;
             }
         }

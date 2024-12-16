@@ -1,5 +1,5 @@
 import {AutomatonSugar} from "./automaton.js";
-import {dataContains} from "../text_processing.js";
+import {dataContains} from "./text_processing.js";
 import {TextClass} from "../../shared/text_class.js";
 import {TerminalCommandLogMessage, TerminalTextLogMessage} from "../../shared/message.js";
 
@@ -47,19 +47,19 @@ class RemoteControlContext extends BaseRemoteControlContext {
     }
 
     execute(command) {
-        if (command instanceof String || typeof command === "string") {
-            console.log("Command is a string");
-            command = TerminalCommandLogMessage.createTimedCommandMessage(command, true);
-        }
+        // if (command instanceof String || typeof command === "string") {
+        //     console.log("Command is a string");
+        //     command = TerminalCommandLogMessage.createTimedCommandMessage(command, true);
+        // }
         this.callables.execute(command);
     }
 
     write(data, {registerWriteInstance = true, password = false}={}) {
         console.log("WRITE!", data, registerWriteInstance, password)
-        if (data instanceof String || typeof data === "string") {
-            console.log("Data is a string");
-            data = TerminalTextLogMessage.createMessageWithCurrentTime(data, TextClass.INPUT, true, password);
-        }
+        // if (data instanceof String || typeof data === "string") {
+        //     console.log("Data is a string");
+        //     data = TerminalTextLogMessage.createMessageWithCurrentTime(data, TextClass.INPUT, true, password);
+        // }
         this.callables.write(data);
         const writeInstance = {
             data: data

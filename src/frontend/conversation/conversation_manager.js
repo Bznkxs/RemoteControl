@@ -1,5 +1,5 @@
 import * as ConversationClasses from "./conversation.js";
-import {TabElementWrapper} from "../tab_element.js";
+import {TabElementWrapper} from "../elements/tab_element.js";
 import {ConversationWindow} from "./conversation_window.js";
 import {TerminalTextLogMessage} from "../../shared/message.js";
 

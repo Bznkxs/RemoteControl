@@ -1,6 +1,5 @@
 import {TerminalCommandLogMessage, TerminalTextLogMessage} from "../../shared/message.js";
 import {TextClass} from "../../shared/text_class.js";
-import {getInputHintMarker} from "../parse_terminal_ansi_message.js";
 import {visualizeAnsiOutputStream} from "./visualize_ansi_output_stream.js";
 
 export class ConversationWindowLogMessage {
@@ -250,22 +249,17 @@ export class ConversationWindowLogMessage {
                 messageElement.appendChild(comment);
             })
 
+            if (this.checkIfMergeWithPrevious()) {
+                // hide meta info
+                messageElement.classList.add('mergedWithPrevious');
+            }
+
             this.messageElement = messageElement;
             if (this.generateMessage === false) {
                 this.messageElement = null;
             }
         }
         return this.messageElement;
-    }
-
-    isElementInputHint(element) {
-        if (!element) return false;
-        // check if a MessageContainerElement contains an input hint (e.g. "Enter your name: " or "/home/user$")
-        if (element.classList.contains('messageContainer')) {
-            const messageContent = element.getElementsByClassName('messageContentContainer')[0];
-            const inputHintMarker = getInputHintMarker();
-            return messageContent.getElementsByClassName(inputHintMarker.classList[0]).length > 0;
-        }
     }
 
     getMergedBlockTopBeautifiedMessage() {

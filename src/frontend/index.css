@@ -137,8 +137,12 @@ body {
   box-sizing: border-box;  /* Optional: Includes padding and border in width calculation */
 }
 
+.logContainer.inlineStyle {
+  display: block flow;
+}
+
 .messageContainer {
-  display: flex;
+  display: flex; /* flex */
   flex-direction: column;
   gap: 1px;
   padding: 3px;
@@ -147,6 +151,15 @@ body {
   border-right: none;
   border-top: 1px solid #ced4da;
   /*margin-bottom: -1px;  !* Remove gap caused by border between containers *!*/
+}
+
+.inlineStyle .messageContainer {
+  display: inline;
+}
+
+.inlineStyle .messageContainer::before {
+  content: '\A';
+    white-space: pre;
 }
 
 .messageContainer:last-child {
@@ -161,8 +174,14 @@ body {
   background-color: #dddddd;
 }
 
+.messageContainer.mergedWithPrevious::before {
+  content: '';
+}
+
 .messageContainer.mergedWithPrevious {
+  display: inline;
   border-top: 1px solid transparent;
+  margin-top: -8px;
   /*margin-top: 1px;*/
   position: relative;
 }
@@ -232,7 +251,7 @@ body {
 }
 
 .metaInfoContainer {
-  display: flex;
+  display: block;
   gap: 1ch;
   padding: 3px;
   color: gray;
@@ -264,10 +283,13 @@ body {
 
 .logLevel {
   /* capitalize */
+  display: inline-block;
+  margin-left: 0.5ch;
     text-transform: capitalize;
 }
 
 .contentVisibilityButton {
+  display: inline-block;
   cursor: pointer;
   font-family: "JetBrains Mono", monospace
 }
@@ -281,7 +303,7 @@ body {
 /*}*/
 
 .messageContentContainer {
-  display: inline-block; /* Behaves like a single inline element */
+  display: inline; /* Behaves like a single inline element */
   max-width: 100%; /* Optional: Restricts width for responsive wrapping */
   padding: 4px;
 }

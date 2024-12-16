@@ -2,8 +2,10 @@ export
 function dataContains(data, contains) {
     if (contains === null || contains === undefined) return true;  // if contains is null or undefined, then it is always true
     // deal with situations where data does not need to be String
+    console.log("[TextProcessing] Data:", data)
     if (data && data.text) {
         data = data.text;
+        console.log("[TextProcessing] Data (=data.text):", data)
     }
     if (contains instanceof Array) {
         let returnVal = true;
@@ -17,6 +19,7 @@ function dataContains(data, contains) {
     }
     // deal with situations where data needs to be String
     if (data === null || data === undefined) return false;
+    console.log("[TextProcessing] Data:", data)
     if (typeof contains === "string") {
         return data.includes(contains);
     }

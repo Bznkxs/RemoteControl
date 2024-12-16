@@ -76,7 +76,7 @@ class ConversationHandler {
         const conversation = {
             channel: new Channel(this.window, channelName),
             commandProcessor: new CommandProcessor(),
-            terminalInterface: new TerminalInterface(),
+            terminalInterface: new TerminalInterface(80, 30, 50),
             messageLog: new Log()
         };
 

@@ -3,9 +3,9 @@ import {
     remindTabLabel,
     toggleElementEnabled,
     updateElementInfoForScrollToBottom
-} from "../element_utils.js";
+} from "../elements/element_utils.js";
 import {ConversationWindowLogMessage} from "./conversation_window_log_message.js";
-import {TabPageElementWrapper} from "../tab_element.js";
+import {TabPageElementWrapper} from "../elements/tab_element.js";
 
 export class ConversationWindow extends TabPageElementWrapper {
     constructor(conversationName, id, conversationTabElementWrapper, eolGetter=null,
@@ -265,10 +265,7 @@ export class ConversationWindow extends TabPageElementWrapper {
         }
 
         if (logMessageElement) {
-            if (windowLogMessage.checkIfMergeWithPrevious()) {
-                // hide meta info
-                logMessageElement.classList.add('mergedWithPrevious');
-            }
+
             this.conversationContainer.appendChild(logMessageElement);
             if (message.password) {
                 const button = logMessageElement.getElementsByClassName('contentVisibilityButton')[0];

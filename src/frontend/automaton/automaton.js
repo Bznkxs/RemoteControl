@@ -1,4 +1,4 @@
-import {dataContains} from "../text_processing.js";
+import {dataContains} from "./text_processing.js";
 
 function getLineOfCall(depth=3) {
     const err = new Error();
@@ -442,7 +442,7 @@ class AutomatonSugar extends Automaton {
                         bufferedData.forEach((data) => {
                             console.log("Buffered data", data);
                             const event="null";
-                            const arg={data: data.rawText, ansiOutputStream: data.ansiOutputStream};
+                            const arg={data: data.text, ansiOutputStream: data.ansiOutputStream};
                             const timestamp=data.time;
                             this.context.fakeEvent("script-stdout", event, arg, timestamp)
                         });

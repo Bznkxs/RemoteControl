@@ -3,6 +3,15 @@ export function visualizeAnsiOutputStream(ansiOutputStream) {
     const { outputSequence, newStartIndex, previousEndsWithNewLine } = ansiOutputStream;
     const otherReturnMessages = [];
 
+    const noEOLIndicator = () => {
+        const newSpan = document.createElement("span");
+        const textNode = document.createTextNode("NO NEWLINE");
+        newSpan.appendChild(textNode);
+        newSpan.classList.add("fallback");
+        newSpan.classList.add("indicator");
+        return newSpan;
+    }
+
     let endsWithNewLine = false;
     outputSequence.forEach((output, index) => {
         let text = output.text;
@@ -31,6 +40,7 @@ export function visualizeAnsiOutputStream(ansiOutputStream) {
 
         if (frag === null) {
             frag = document.createDocumentFragment();
+            if (!previousEndsWithNewLine) frag.appendChild(noEOLIndicator());
         }
 
         const newSpan = document.createElement("span");
@@ -47,14 +57,7 @@ export function visualizeAnsiOutputStream(ansiOutputStream) {
         frag.appendChild(newSpan);
     })
 
-    const noEOLIndicator = () => {
-        const newSpan = document.createElement("span");
-        const textNode = document.createTextNode("NO NEWLINE");
-        newSpan.appendChild(textNode);
-        newSpan.classList.add("fallback");
-        newSpan.classList.add("indicator");
-        return newSpan;
-    }
+
 
     if (frag && !endsWithNewLine) {
         frag.appendChild(noEOLIndicator());
