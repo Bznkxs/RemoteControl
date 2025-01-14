@@ -11,7 +11,7 @@ body {
 
 .tab {
   height: 100%;
-  width: 95%;
+  /*width: 95%;*/
   display: flex;
   flex-direction: column;
   align-content: center;
@@ -19,13 +19,8 @@ body {
 
 
 
-.tab-head {
-  height: 10%;
-}
-
 .tab-body {
     height: 90%;
-
 }
 
 .log-section {
@@ -39,7 +34,7 @@ body {
   border-radius: 0.3em;
   border: 5px solid #ced4da;
   padding: 1em;
-  max-width: 90%;
+  /*max-width: 90%;*/
   margin: 0;
 }
 
@@ -94,7 +89,7 @@ body {
   border: 0;
   padding: 1em;
   height: 100%;
-  width: 100%;
+  width: 98%;
   margin: 0;
 }
 
@@ -107,7 +102,7 @@ body {
   border: 5px solid #ced4da;
   padding: 1em;
   height: 90%;
-  max-width: 90%;
+  /*max-width: 90%;*/
   margin: 0;
 }
 
@@ -142,6 +137,7 @@ body {
 }
 
 .messageContainer {
+  position: relative;
   display: flex; /* flex */
   flex-direction: column;
   gap: 1px;
@@ -167,7 +163,7 @@ body {
 }
 
 .messageContainer:hover {
-  background-color: #f0f0f0;
+  background-color: #e0e0e080;
 }
 
 .messageContainer:hover .content span {
@@ -183,14 +179,16 @@ body {
   border-top: 1px solid transparent;
   margin-top: -8px;
   /*margin-top: 1px;*/
-  position: relative;
+  /*overflow: clip;  !* clip the floating metaInfoContainer when the text is too short. Works only with position: relative, overflow: clip and metaInfoContainer.position: absolute *!*/
 }
 
 .messageContainer.mergedWithPrevious .metaInfoContainer {
   /*display: flex;*/
   display: none;
   /*visibility: hidden;*/
+
   position: absolute;
+  clip-path: inset(0 0 0 0);
   right: 0;
   top: .2rem;
 
@@ -200,7 +198,7 @@ body {
 }
 
 .messageContainer.mergedWithPrevious:hover {
-  border-top: 1px solid #ced4da;
+  /*border-top: 1px solid #ced4da;*/
 }
 
 .messageContainer.mergedWithPrevious:hover .metaInfoContainer {
@@ -291,11 +289,76 @@ body {
 .contentVisibilityButton {
   display: inline-block;
   cursor: pointer;
+  user-select: none;
   font-family: "JetBrains Mono", monospace
 }
 
 .contentVisibilityButton::before {
   content: ' | ';
+}
+
+.bookmarkButton {
+  display: inline-block;
+  position: relative;
+  user-select: none;
+  width: 1.2rem;
+  white-space: pre;
+  /*max-height: 100%;*/
+  /*overflow: hidden;*/
+}
+
+.file-name {
+  /* underline */
+    text-decoration: underline !important;
+  cursor: pointer;
+}
+
+.file-name:hover {
+  color: #007bff !important;
+}
+
+.inner-bookmarkButton {
+  display: inline-block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #6c757d;
+  cursor: pointer;
+  user-select: none;
+  font-size: 1rem;
+  transition: font-size 0.2s ease, color 0.2s ease;
+}
+
+.search-result {
+  background-color: #f0f0f0 !important;
+
+}
+
+.search-result.current-search-result {
+  background-color: #f0e0f0 !important;
+  /*visibility: visible !important;*/
+  /*opacity: 1 !important;*/
+}
+
+.search-result:hover {
+  background-color: #f3f3f3 !important;
+
+}
+
+.search-result.current-search-result:hover {
+  background-color: #f3e6f3 !important;
+  /*visibility: visible !important;*/
+  /*opacity: 1 !important;*/
+}
+
+.inner-bookmarkButton:hover {
+  color: #007bff;
+  font-size: 1.1rem;
+}
+
+.messageContainer.bookmarked {
+  background-color: #f0e0f0;
 }
 
 /*.contentVisibilityButton:hover {*/
@@ -305,7 +368,7 @@ body {
 .messageContentContainer {
   display: inline; /* Behaves like a single inline element */
   max-width: 100%; /* Optional: Restricts width for responsive wrapping */
-  padding: 4px;
+  /*padding: 4px;*/
 }
 
 
@@ -319,10 +382,10 @@ body {
 .content-breakable-span span {
   /* a round corner box */
   /*--background-color: #f0f0f0;*/
-  line-height: 1.2;
+  /*line-height: 1.2;*/
   background-color: rgba(0, 0, 0, 0);
   /*border-radius: 1em;*/
-  padding: 0 .4ch;
+  padding: 0 .4rem;
   margin: 0
   /*background-color: var(--background-color);*/
   /*margin: 5px 0;*/
@@ -344,6 +407,16 @@ body {
   --foreground-color: #333333;
   color: var(--foreground-color);
 }
+
+.content-breakable-span span.default {
+  padding: 0;
+}
+
+.content-breakable-span span.default span {
+  padding: 0;
+}
+
+.content-breakable-span span.default span.indicator { padding: 0 0.2rem; margin: 0 0.04rem;}
 
 .command {
   --foreground-color: darkorange;
@@ -409,11 +482,18 @@ body {
 }
 
 .tab-head {
-  display: inline-flex;
-  width: fit-content;
-  gap: .3em;
+  margin: 0.4rem 0;
+  display: flex;
+  white-space: nowrap;
+  /*width: fit-content;*/
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-y: hidden;
+  min-height: 2rem;
+  user-select: none;
   /* center vertically */
   align-items: center;
+  ;
   justify-content: left;
   /*justify-content: space-between;*/
   /*align-items: center;*/
@@ -421,17 +501,127 @@ body {
   /*!*border-bottom: 1px solid #ced4da;*!*/
 }
 
+.tab-label-cover {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  content: '';
+  z-index: 100;
+  display: flex;
+    align-items: center;
+}
+
+.tab-label-cover-board {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  position: absolute;
+  left: 0;
+    top: 0;
+  z-index: 100;
+  content: '';
+}
+
+.tab-add-button {
+    background-color: #007bff;
+    border: none;
+    border-radius: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    width: 1rem;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    /*margin-top: 1rem;*/
+    padding: 0.2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+}
+
+.tab-close-button {
+    background-color: #00000000;
+    border: none;
+    border-radius: 1rem;
+    height: .5rem;
+    flex-shrink: 0;
+    width: .5rem;
+    color: black;
+    cursor: pointer;
+    font-size: 1rem;
+    margin: 0 0.2rem;
+    font-weight: normal !important;
+    padding: 0.2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.tab-close-button:hover {
+    background-color: #e0e0e0;
+}
+
+.no-new-line-indicator::before {
+  content: '↑';
+}
+
+.new-line-indicator {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+
+
+.inlineStyle .new-line-indicator::before {
+  content: '\A';
+    white-space: pre;
+}
+
+.new-line-indicator::before {
+  content: '';
+}
+
 .tab-separator {
   user-select: none;
     color: #ced4da;
   font-size: 1.5rem;
+  max-width: 2rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  white-space: nowrap;
+  display: inline-flex;
+    justify-content: center;
+    align-items: center;
+
+  transition: max-width 0.5s ease, opacity 0.2s ease;
+  background: white;
 }
 
 .tab-label {
   font-size: 1.25rem;
   cursor: pointer;
+  display: inline-flex;
+    align-items: center;
+  transition: max-width 1s ease, opacity 0.2s ease;
+  white-space: nowrap;
+  background: white;
+  /*background: #6c757d;*/
+  max-width: 100%;
   /* dynamic width */
 }
+
+.no-width {
+  max-width: 0 !important;
+  transition: max-width 0.2s ease, opacity 0.2s ease;
+  /*overflow: hidden;*/
+}
+
+.transparent {
+  opacity: 0 !important;
+}
+
 
 .tab-label.active {
   color: #001122;
@@ -484,3 +674,40 @@ input.error {
 input.error:focus {
   border-color: #dc3545;
 }
+
+#search-widget {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0.5rem;
+  position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.search-button {
+  cursor: pointer;
+  color: #222222;
+  font-size: 1rem;
+  font-weight: bolder;
+    padding: 0.5rem;
+  font-family: math;
+}
+
+.search-button.disabled {
+  cursor: default;
+  color: #bbbbbb;
+}
+
+
+.search-button:hover {
+  color: #007bff;
+  background: #f0f0f0;
+}
+
+.search-button.disabled:hover {
+  background: #00000000;
+  color: #bbbbbb;
+}
+
+

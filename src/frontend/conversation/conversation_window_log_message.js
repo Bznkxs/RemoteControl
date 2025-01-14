@@ -4,7 +4,7 @@ import {visualizeAnsiOutputStream} from "./visualize_ansi_output_stream.js";
 
 export class ConversationWindowLogMessage {
     constructor(message) {
-        console.log("Creating BeautifiedLogMessage", message)
+        // console.log("Creating BeautifiedLogMessage", message)
         this.parseANSI = true;
         if (!message instanceof TerminalTextLogMessage) {
             throw new Error('Message must be an instance of TerminalTextLogMessage');
@@ -60,7 +60,7 @@ export class ConversationWindowLogMessage {
     }
 
     static inferArgStyleFromText(text) {
-        console.log("[ConversationWindowLogMessage] Infer arg style from text", text)
+        // console.log("[ConversationWindowLogMessage] Infer arg style from text", text)
         if (typeof text !== 'string') {
             return 'default';
         }
@@ -149,7 +149,7 @@ export class ConversationWindowLogMessage {
             const message = this.getMessage();
             let htmlSnippet = message.text;
             if (message.textClass.v === TextClass.CONTENT.v && this.parseANSI) {
-                console.log("[ConversationWindowLogMessage] Parsing ANSI for message", message.text)
+                // console.log("[ConversationWindowLogMessage] Parsing ANSI for message", message.text)
                 if (message.ansiOutputStream !== null && message.ansiOutputStream !== undefined) {
                     const {frag, otherReturnMessages} = visualizeAnsiOutputStream(message.ansiOutputStream);
                     console.log("[ConversationWindowLogMessage] Parsed ANSI", frag, otherReturnMessages)
@@ -211,16 +211,41 @@ export class ConversationWindowLogMessage {
         return this.visibilityButton;
     }
 
+    getBookmarkButton = () => {
+        if (!this.bookmarkButton) {
+            this.bookmarkButton = document.createElement('div');
+            this.bookmarkButton.classList.add('bookmarkButton');
+            this.bookmarkButton.innerText = "  ";
+            this.innerBookmarkButton = document.createElement('div');
+            this.bookmarkButton.appendChild(this.innerBookmarkButton);
+            this.innerBookmarkButton.classList.add('inner-bookmarkButton');
+            this.innerBookmarkButton.innerText = '☆';
+            this.innerBookmarkButton.addEventListener('click', () => {
+                this.innerBookmarkButton.classList.toggle('bookmarked');
+                this.messageElement.classList.toggle('bookmarked');
+                if (this.messageElement.classList.contains('bookmarked')) {
+                    this.innerBookmarkButton.innerText = '★';
+                } else {
+                    this.innerBookmarkButton.innerText = '☆';
+                }
+            });
+        }
+        return this.bookmarkButton;
+    }
+
     getMetaElement = () => {
         if (!this.metaElement) {
             const metaElement = document.createElement('div');
             metaElement.classList.add('metaInfoContainer');
+            const bookmarkButton = this.getBookmarkButton();
+            metaElement.appendChild(bookmarkButton);
             const timeStampElement = this.getTimeStampElement();
             metaElement.appendChild(timeStampElement);
             const logLevelElement = this.getLogLevelElement();
             metaElement.appendChild(logLevelElement);
             const toggleVisibilityButton = this.getVisibilityButton();
             metaElement.appendChild(toggleVisibilityButton);
+
             this.metaElement = metaElement;
         }
         return this.metaElement;
@@ -275,7 +300,7 @@ export class ConversationWindowLogMessage {
                 this.mergedBlockTopBeautifiedMessage = previous.getMergedBlockTopBeautifiedMessage();
                 this.mergedBlockTopBeautifiedMessage.difference += 1;
             }
-            console.log("[ConversationWindowLogMessage] GetMergedBlockTopBeautifiedMessage", this.getMessage().text, this.mergedBlockTopBeautifiedMessage.message.getMessage().text, this.mergedBlockTopBeautifiedMessage.difference);
+            // console.log("[ConversationWindowLogMessage] GetMergedBlockTopBeautifiedMessage", this.getMessage().text, this.mergedBlockTopBeautifiedMessage.message.getMessage().text, this.mergedBlockTopBeautifiedMessage.difference);
         }
         return this.mergedBlockTopBeautifiedMessage;
     }
@@ -299,7 +324,7 @@ export class ConversationWindowLogMessage {
         else {
             this.mergeWithPrevious = false;
         }
-        console.log("[ConversationWindowLogMessage] Message.mergeWithPrevious", this.getMessage().text, this.mergeWithPrevious, this.checkIfContinuousMessage());
+        // console.log("[ConversationWindowLogMessage] Message.mergeWithPrevious", this.getMessage().text, this.mergeWithPrevious, this.checkIfContinuousMessage());
         return this.mergeWithPrevious;
     }
 
@@ -309,7 +334,7 @@ export class ConversationWindowLogMessage {
         }
         const previous = this.previousMessage;
         this.continuousMessage = previous ? previous.getMessage().textClass.v === TextClass.CONTENT.v && this.getMessage().textClass.v === TextClass.CONTENT.v : false;
-        console.log("[ConversationWindowLogMessage] Checking if continuous message", this.getMessage().text, this.previousMessage && this.previousMessage.getMessage().textClass.v, this.continuousMessage);
+        // console.log("[ConversationWindowLogMessage] Checking if continuous message", this.getMessage().text, this.previousMessage && this.previousMessage.getMessage().textClass.v, this.continuousMessage);
         return this.continuousMessage;
     }
 

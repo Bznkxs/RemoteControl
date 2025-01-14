@@ -4,13 +4,13 @@ import {ConversationWindow} from "./conversation_window.js";
 
 export
 class BaseConversation {
-    constructor(channelCreator, channelCreatorArgs, id) {
+    constructor(channelCreator, channelCreatorArgs, id, eol="\n") {
         this.channel = channelCreator(channelCreatorArgs);
         this.id = id;
         this.messageListeners = [];
         this.onMessage(this.defaultMessageListener);
         this.messageList = [];
-        this._EOL = "\n";
+        this._EOL = eol;
         this.exitCodeListeners = [];
     }
 
@@ -24,14 +24,21 @@ class BaseConversation {
 
     /**
      *
-     * @param {string} eol
+     * @param {string | null } eol
      * @param strictCheck
      * @returns {boolean} If the EOL was set successfully
      */
     setEOL = (eol, strictCheck=false) => {
         if (strictCheck) {
-            if (['\n', '\r\n', '\r', '\n\r', ''].indexOf(eol) === -1) {
+            if (eol === null || eol === undefined) {
                 return false;
+            }
+            const allowedChars = ["\n", "\r", " ", "\t"];
+            for (let i = 0; i < eol.length; i++) {
+                const char = eol[i];
+                if (!allowedChars.includes(char)) {
+                    return false;
+                }
             }
         }
         this._EOL = eol;
@@ -132,14 +139,14 @@ class BaseConversation {
 
 export
 class VisualizedConversation extends BaseConversation {
-    constructor(channelCreator, channelCreatorArgs, id, conversationWindow) {
+    constructor(channelCreator, channelCreatorArgs, id, conversationWindow, eol=null) {
         // conversationWindow is a TabPageElementWrapper.
         // The conversationWindow object belongs to this object.
-        super(channelCreator, channelCreatorArgs, id);
+        super(channelCreator, channelCreatorArgs, id, eol);  // if eol == null, then it will be synced with the conversation window
         this.conversationWindow = conversationWindow;
+        this.conversationWindow.onChangeEOL((eol) => this.setEOLWithoutSync(eol, true));  // this should be done before setting the EOL
         this.conversationWindow.setEOLGetter(this.getEOL);
         this.onMessage(this.conversationWindow.addMessage);
-        this.conversationWindow.onChangeEOL((eol) => this.setEOLWithoutSync(eol, true));
         this.conversationWindow.onSendInputWithEOL(this.sendInputWithEOL);
         this.conversationWindow.onSendCommand(this.sendCommand);
         this.conversationWindow.onSendSignal(this.sendSignal);

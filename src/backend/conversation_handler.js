@@ -1,13 +1,31 @@
-const {ipcMain} = require ('electron');
-const {CommandProcessor} = require("./command_processor");
-const {TerminalInterface} = require("./terminal_interface");
+// const {ipcMain} = require ('electron');
+// const {CommandProcessor} = require("./command_processor");
+// const {TerminalInterface} = require("./terminal_interface");
+// const fs = require("fs");
+// const fileType = require('file-type');
+//
+// const requireESM = require('esm')(module);
+// const {Log} = requireESM("../shared/message_log");
+// const {TextClass} = requireESM("../shared/text_class");
+// const {TerminalCommandLogMessage, TerminalTextLogMessage} = requireESM("../shared/message");
+// const {getPureTextFromAnsiOutputStream} = requireESM("../shared/get_pure_text_from_ansi_output_stream.js");
+
+// ESM style:
 
 
-const requireESM = require('esm')(module);
-const {Log} = requireESM("../shared/message_log");
-const {TextClass} = requireESM("../shared/text_class");
-const {TerminalCommandLogMessage, TerminalTextLogMessage} = requireESM("../shared/message");
-class Channel {
+import {ContextManager} from "./context_manager.js";
+
+const {ipcMain, shell} = await import ('electron');
+import {CommandProcessor} from './command_processor.js';
+import {TerminalInterface} from './terminal_interface.js';
+import * as fs from 'fs';
+import * as FileType from 'file-type';
+import {Log} from '../shared/message_log.js';
+import {TextClass} from '../shared/text_class.js';
+import {TerminalCommandLogMessage, TerminalTextLogMessage} from '../shared/message.js';
+
+
+export class Channel {
     constructor(window, channelName) {
         this.window = window;
         this.channelName = channelName;
@@ -58,11 +76,13 @@ class Channel {
      * @param {TerminalTextLogMessage} message
      */
     sendMessage(message) {
+        console.log(`[Channel] webContents ${'channel-serialized-message-' + this.channelName} send message`, message.serialize())
         this.window.webContents.send('channel-serialized-message-' + this.channelName, message.serialize());
+        console.log(`[Channel] webContents ${'channel-serialized-message-' + this.channelName} send message success`)
     }
 }
 
-class ConversationHandler {
+export class ConversationHandler {
     constructor(window) {
         this.window = window;
         this.conversations = [];
@@ -71,50 +91,118 @@ class ConversationHandler {
         });
     }
 
-    addConversation(channelName) {
-        console.log("[ConversationHandler] Received channel creation", channelName)
-        const conversation = {
+    createConversation(channelName) {
+        return {
             channel: new Channel(this.window, channelName),
-            commandProcessor: new CommandProcessor(),
+            commandProcessor: new CommandProcessor(channelName),
             terminalInterface: new TerminalInterface(80, 30, 50),
-            messageLog: new Log()
+            messageLog: new Log(),
+            channelName: channelName,
+            contextManager: new ContextManager()
         };
+    }
 
+    sendInputCallback(conversation, text, options={password: false}) {
+        console.log(`[ConversationHandler] >>> channel ${conversation.channel.channelName} send to child`, JSON.stringify(text))
+        conversation.contextManager.bufferInput(text, (text)=>{conversation.commandProcessor.sendToChild(text);});
+
+        const message = TerminalTextLogMessage.createMessageWithCurrentTime(text, TextClass.INPUT, true, options.password);
+        conversation.messageLog.log(message);
+        conversation.channel.sendMessage(message);
+    }
+
+    sendCommandCallback(conversation, text) {
+        console.log(`[ConversationHandler] channel ${conversation.channel.channelName} send command`, text)
+        const message = TerminalCommandLogMessage.createTimedCommandMessage(text);
+        conversation.commandProcessor.createChildProcess(message);
+        conversation.contextManager.bufferInput(text, ()=>{});
+
+        conversation.messageLog.log(message);
+        conversation.channel.sendMessage(message);
+    }
+
+    sendSignalCallback(conversation, signal) {
+        conversation.commandProcessor.killChildProcess(signal);
+        const message = TerminalTextLogMessage.createMessageWithCurrentTime(signal, TextClass.SIGNAL, false, false);
+        conversation.messageLog.log(message);
+        conversation.channel.sendMessage(message);
+    }
+
+
+
+    createProcessOutputData(conversation) {
+        return {
+            channelName: conversation.channelName,
+            createAnsiOutputStream: (childProcessOutput) => {
+                const {stream: ansiOutputStream} = conversation.terminalInterface.parseRawOutput(childProcessOutput.text || "");
+                return ansiOutputStream;
+            },
+            callback: (childProcessOutput) => {
+                console.log(`[ConversationHandler] Conversation ${conversation.channelName} Received output data`, JSON.stringify(childProcessOutput))
+                if (childProcessOutput.args && childProcessOutput.args.command === "!open") {
+                    const fileTypeInfo = FileType.fileTypeFromFile(childProcessOutput.args.localPath);
+                    console.log(`[ConversationHandler] Conversation ${conversation.channelName} Received output data ${childProcessOutput.args.localPath} with fileTypeInfo`, fileTypeInfo)
+                    shell.openPath(childProcessOutput.args.localPath);
+                    fs.readFile(childProcessOutput.args.localPath, async (err, data) => {
+                        if (err) {
+                            console.error(err);
+                            return;
+                        }
+                        if (fileTypeInfo && (fileTypeInfo.mime.startsWith("text") || fileTypeInfo.mime.startsWith("plain/text"))) {  // weird example in docs
+                            const text = data.toString();
+                            const message = TerminalTextLogMessage.createMessageWithCurrentTime(text, TextClass.FILE, false, false, fileTypeInfo);
+                            conversation.messageLog.log(message);
+                            conversation.channel.sendMessage(message);
+                        } else {
+                            const base64 = data.toString('base64');
+                            const message = TerminalTextLogMessage.createMessageWithCurrentTime(base64, TextClass.FILE, false, false, fileTypeInfo);
+                            conversation.messageLog.log(message);
+                            conversation.channel.sendMessage(message);
+                        }
+                    });
+                } else {
+                    const ansiOutputStream = childProcessOutput.text;
+                    const endStream = childProcessOutput.end;
+                    const message = TerminalTextLogMessage.createOutputMessageWithCurrentTime(childProcessOutput, ansiOutputStream, endStream);
+                    conversation.messageLog.log(message);
+                    conversation.channel.sendMessage(message);
+                }
+            }
+        };
+    }
+
+    addConversation(channelName) {
+        console.log("[ConversationHandler] Received channel creation", channelName);
+        const conversation = this.createConversation(channelName);
         conversation.channel.onSendInput((text, options={password: false}) => {
-            conversation.commandProcessor.sendToChild(text);
-            const message = TerminalTextLogMessage.createMessageWithCurrentTime(text, TextClass.INPUT, true, options.password);
-            conversation.messageLog.log(message);
-            conversation.channel.sendMessage(message);
+            this.sendInputCallback(conversation, text, options);
         })
 
         conversation.channel.onSendCommand((text) => {
-            const message = TerminalCommandLogMessage.createTimedCommandMessage(text);
-            conversation.commandProcessor.createChildProcess(message.command, message.args);
-            conversation.messageLog.log(message);
-            conversation.channel.sendMessage(message);
+            this.sendCommandCallback(conversation, text);
         })
 
         conversation.channel.onSendSignal((signal) => {
-            conversation.commandProcessor.killChildProcess(signal);
-            const message = TerminalTextLogMessage.createMessageWithCurrentTime(signal, TextClass.SIGNAL);
-            conversation.messageLog.log(message);
-            conversation.channel.sendMessage(message);
+            this.sendCommandCallback(conversation, signal);
         })
 
-        const processOutputData = (rawOutput) => {
-            const {stream: ansiOutputStream} = conversation.terminalInterface.parseRawOutput(rawOutput);
-            const message = TerminalTextLogMessage.createMessageWithCurrentTime(rawOutput, TextClass.CONTENT);
-            message.ansiOutputStream = ansiOutputStream;
-            conversation.messageLog.log(message);
-            conversation.channel.sendMessage(message);
-        }
+        conversation.contextManager.onStdout((childProcessOutput) => {
+
+        });
+
+        const processOutputData = this.createProcessOutputData(conversation);
 
         conversation.commandProcessor.connectSignals({
             onSpawnedCallback: () => conversation.channel.sendScriptSpawned(new Date()),
-            onStdoutCallback: processOutputData,
-            onStderrCallback: processOutputData,
+            onStdoutCallback: (childProcessOutput) => {
+                console.log(`[ConversationHandler] Conversation ${conversation.channelName} callback onStdout with connectSignals`,)
+                console.log(`[ConversationHandler] Conversation ${conversation.channelName} has processOutputData`, processOutputData.channelName)
+                const ansiOutputStream = processOutputData.createAnsiOutputStream(childProcessOutput);
+                conversation.contextManager.receiveOutputFromChildProcess(ansiOutputStream);
+            },
+            onStderrCallback: (childProcessOutput) => processOutputData.callback(childProcessOutput),
             onExitCallback: (exitCode) => {
-                const message = TerminalTextLogMessage.createMessageWithCurrentTime(exitCode, TextClass.EXITCODE);
+                const message = TerminalTextLogMessage.createMessageWithCurrentTime(exitCode, TextClass.EXITCODE, false, false);
                 conversation.messageLog.log(message);
                 conversation.channel.sendMessage(message);
             },
@@ -128,5 +216,5 @@ class ConversationHandler {
 
 
 }
-
-module.exports = {ConversationHandler};
+//
+// module.exports = {ConversationHandler};

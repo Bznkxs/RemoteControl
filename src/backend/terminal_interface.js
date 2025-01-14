@@ -1,7 +1,11 @@
-const {SimpleTerminal} = require("../simpleAnsiTerminal/simple_terminal.js");
-const AnsiParser = require('node-ansiparser');
+// const {SimpleTerminal} = require("../simpleAnsiTerminal/simple_terminal.js");
+// const AnsiParser = require('node-ansiparser');
 
-class TerminalInterface {
+// ESM style:
+import {SimpleTerminal} from "../simpleAnsiTerminal/simple_terminal.js";
+import AnsiParser from 'node-ansiparser';
+
+export class TerminalInterface {
     constructor(...terminalArgs) {
         this.terminal = new SimpleTerminal(...terminalArgs);
         this.parser = new AnsiParser(this.terminal);
@@ -14,4 +18,4 @@ class TerminalInterface {
     }
 }
 
-module.exports = {TerminalInterface};
+// module.exports = {TerminalInterface};

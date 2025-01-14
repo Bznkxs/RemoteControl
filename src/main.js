@@ -1,14 +1,15 @@
-const { app, BrowserWindow } = require ('electron');
-const path = require ('node:path');
-const started = require ('electron-squirrel-startup');
-const {ipcMain} = require ('electron');
-
-require ("node-pty");
-const requireESM = require('esm')(module);
+const { app, BrowserWindow } = await import ('electron');
+const path = await import ('node:path');
+const {started} = await import ('electron-squirrel-startup');
+const {ipcMain} = await import ('electron');
+const {ConversationHandler} = await import ("./backend/conversation_handler.js");
+const fs = await import ('fs');
+const {OpenAIChatStudentExpertPair} = await import ("./backend/chatgpt.js");
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
+
 
 const createWindow = () => {
   // Create the browser window.
@@ -16,16 +17,27 @@ const createWindow = () => {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(process.cwd(), 'src', 'preload.js')
     },
   });
 
   // and load the index.html of the app.
-  mainWindow.loadURL(path.join(__dirname, 'frontend', 'index.html'));
+  mainWindow.loadURL(path.join(process.cwd(),'src','frontend', 'index.html'));
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
-  const conversationHandler = new (require('./backend/conversation_handler').ConversationHandler)(mainWindow);
+  //
+  const conversationHandler = new ConversationHandler(mainWindow);
+
+    ipcMain.on("create-chatgpt", (event, configPath, problemText) => {
+
+        const chat = new OpenAIChatStudentExpertPair(configPath, (message) => {
+            mainWindow.webContents.send('chatgpt-send-message', message);
+        });
+        chat.startChat(problemText);
+
+    });
+
 };
 
 // This method will be called when Electron has finished
@@ -91,7 +103,7 @@ app.on('window-all-closed', () => {
 
 
 ipcMain.on("read-file", (event, path) => {
-    const fs = require('fs');
+
     // console.log(process.cwd());
     fs.readFile(path, 'utf8', (err, data) => {
         if (err) {
@@ -103,3 +115,4 @@ ipcMain.on("read-file", (event, path) => {
         }
     })
 });
+

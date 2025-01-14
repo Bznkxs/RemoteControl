@@ -7,10 +7,11 @@ import {
 import {ConversationWindowLogMessage} from "./conversation_window_log_message.js";
 import {TabPageElementWrapper} from "../elements/tab_element.js";
 
+
 export class ConversationWindow extends TabPageElementWrapper {
-    constructor(conversationName, id, conversationTabElementWrapper, eolGetter=null,
-                {command="", stdin=""}={}) {
-        super(conversationTabElementWrapper, conversationName, id);
+    constructor(conversationTabElementWrapper, conversationName, id, creator=null,
+                {eolGetter=null, command="", stdin="", eol="\n"}={}) {
+        super(conversationTabElementWrapper, conversationName, id, creator);
         const logTabContent = this.tabContentElement;
 
         const logSection = document.createElement("div");
@@ -104,6 +105,7 @@ export class ConversationWindow extends TabPageElementWrapper {
             return this.commandInput.value;
         }
 
+        this.initialEOL = eol;
         this.setEOLGetter(eolGetter);
         this.changeEOLListener = (eol) => {
             if (['\n', '\r\n', '\r', '\n\r', ''].indexOf(eol) === -1) {
@@ -114,12 +116,16 @@ export class ConversationWindow extends TabPageElementWrapper {
             return true;
         };
 
-        this.sendButton.onclick = () => {
+        this.sendRawInput = (inputString) => {
             for (const listener of this.sendRawInputListeners) {
-                const inputString = this.getInputString();
                 console.log("[ConversationWindow] Sending input: " + JSON.stringify(inputString));
                 listener(inputString);
+
             }
+        }
+
+        this.sendButton.onclick = () => {
+            this.sendRawInput(this.getInputString());
         }
         this.commandButton.onclick = () => {
             for (const listener of this.sendCommandListeners) {
@@ -162,20 +168,44 @@ export class ConversationWindow extends TabPageElementWrapper {
             updateElementInfoForScrollToBottom(this.conversationContainer);
         });
 
+        const terminalEmulatorTabLabel = this.containerTabElementWrapper.containerTabPageElementWrapper?
+            this.containerTabElementWrapper.containerTabPageElementWrapper.tabLabelElement : null;
+        const conversationTabLabel = this.tabLabelElement;
+        console.log("[ConversationWindow] Detected terminal emulator", this.containerTabElementWrapper.containerTabPageElementWrapper)
+        console.log("[ConversationWindow] Detected terminal emulator tab label", terminalEmulatorTabLabel)
 
-        const logTabLabel = this.tabLabelElement
+        /**
+         *
+         * @param {MutationRecord[]}mutationList
+         * @param {MutationObserver} observer
+         */
+        const maintainScrollToBottomCallback = (mutationList, observer) => {
+            console.log("[ConversationWindow] Mutation observed", mutationList)
+            mutationList.forEach((mutation) => {
+                if (mutation.type === "attributes" && mutation.attributeName === "class") {
+                    return;
+                }
+                console.log("[ConversationWindow] Mutation observed", mutation);
+                remindTabLabel(conversationTabLabel);
+                if (terminalEmulatorTabLabel) {
+                    remindTabLabel(terminalEmulatorTabLabel);
+                }
+                maintainScrollToBottom(this.conversationContainer);
 
-        const maintainScrollToBottomCallback = () => {
-            remindTabLabel(logTabLabel);
-            maintainScrollToBottom(this.conversationContainer);
+            });
+
+
         }
 
         const conversationContainerObserver = new MutationObserver(maintainScrollToBottomCallback);
-        this.registerGlobalEventListener(
-            logTabLabel,
-            "click",
-            maintainScrollToBottomCallback
-        );
+        if (terminalEmulatorTabLabel) {
+            this.registerGlobalEventListener(
+                terminalEmulatorTabLabel,
+                "click",
+                () => {maintainScrollToBottomCallback([], null);}
+            );
+        }
+
         conversationContainerObserver.observe(this.conversationContainer,
             {childList: true, attributes: true, subtree: true});
 
@@ -212,16 +242,20 @@ export class ConversationWindow extends TabPageElementWrapper {
         }
     }
 
-    setEOLGetter = (eolGetter) => {
+    setEOLGetter = (eolGetter, useVisualizeEOLIfEOLIsNullOrUndefined=true) => {
         if (eolGetter) {
             this.getEOL = eolGetter;
         } else {
-            this._localEOL = "\n";
+            this._localEOL = this.initialEOL;
             this.getEOL = () => {
                 return this._localEOL;
             }
         }
+        if (useVisualizeEOLIfEOLIsNullOrUndefined && (this.getEOL() === null || this.getEOL() === undefined)) {
+            this.changeEOLListener(this.initialEOL);
+        }
         this.syncEOL(this.getEOL());
+
     }
 
     registerGlobalEventListener = (element, eventName, callback) => {
@@ -235,7 +269,7 @@ export class ConversationWindow extends TabPageElementWrapper {
             && this.commandButtonNotForceDisabled);
     }
 
-    destroy = () => {
+    destroy() {
         if (super.destroy()) {
             for (const [element, eventName, callback] of this.globalEventListeners) {
                 element.removeEventListener(eventName, callback);
@@ -254,12 +288,33 @@ export class ConversationWindow extends TabPageElementWrapper {
         }
 
         const logMessageElement = windowLogMessage.beautifiedMessage;
+        console.log("[ConversationWindow] Added message, got logMessageElement", logMessageElement)
 
         console.log("[ConversationWindow] Added message, got otherReturnMessages", windowLogMessage.otherReturnMessages)
         if (windowLogMessage.otherReturnMessages) {
             windowLogMessage.otherReturnMessages.forEach((otherReturnMessage) => {
                 if (otherReturnMessage.action === "set-title") {
                     this.changeTabName(otherReturnMessage.text);
+                }
+                else if (otherReturnMessage.action === "file-entry") {
+                    const fileEntry = otherReturnMessage.element;
+                    const output = otherReturnMessage.output;
+                    const fileNames = fileEntry.getElementsByClassName("file-name");
+                    console.log("[ConversationWindow] File entry", fileEntry, output, fileNames)
+                    for (let i = 0; i < fileNames.length; i++) {
+                        const fileNameElement = fileNames[i];
+                        const entry = output.actionArgs[i];
+                        if (!entry.pwd) {
+                            fileNameElement.classList.remove("file-name");
+                            continue;
+                        }
+                        const fullName = entry.pwd + (entry.pwd.endsWith("/") ? "" : "/") + entry.name
+                        const command = "!open " + fullName;
+                        fileNameElement.addEventListener("click", () => {
+                            console.log("[ConversationWindow] File entry clicked", output, ". Sending command: " + command);
+                            this.sendRawInput(command);
+                        });
+                    }
                 }
             });
         }

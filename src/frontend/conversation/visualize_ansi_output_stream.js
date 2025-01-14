@@ -5,10 +5,15 @@ export function visualizeAnsiOutputStream(ansiOutputStream) {
 
     const noEOLIndicator = () => {
         const newSpan = document.createElement("span");
-        const textNode = document.createTextNode("NO NEWLINE");
-        newSpan.appendChild(textNode);
+        newSpan.classList.add("no-new-line-indicator");
         newSpan.classList.add("fallback");
         newSpan.classList.add("indicator");
+        return newSpan;
+    }
+
+    const newLineIndicator = () => {
+        const newSpan = document.createElement("span");
+        newSpan.classList.add("new-line-indicator");
         return newSpan;
     }
 
@@ -30,9 +35,7 @@ export function visualizeAnsiOutputStream(ansiOutputStream) {
         endsWithNewLine = text.endsWith("\n");
 
 
-        if (text.startsWith("\n") && !frag && !previousEndsWithNewLine) {
-            text = text.substring(1);
-        }
+
 
         if (text === "") {
             return;
@@ -40,8 +43,20 @@ export function visualizeAnsiOutputStream(ansiOutputStream) {
 
         if (frag === null) {
             frag = document.createDocumentFragment();
-            if (!previousEndsWithNewLine) frag.appendChild(noEOLIndicator());
+            // if (!previousEndsWithNewLine) frag.appendChild(noEOLIndicator());
+
+            if (!previousEndsWithNewLine) {
+                if (text.startsWith("\n")) {
+                    frag.appendChild(newLineIndicator());
+                    text = text.substring(1);
+                } else {
+                    frag.appendChild(noEOLIndicator());
+                }
+
+            }
         }
+
+
 
         const newSpan = document.createElement("span");
         const textNode = document.createTextNode(text);
@@ -54,14 +69,19 @@ export function visualizeAnsiOutputStream(ansiOutputStream) {
         if (output.elementStyle) {
             newSpan.style = output.elementStyle;
         }
+        if (output.actionClass === "file-entry") {
+            newSpan.classList.add("file-entry");
+            newSpan.innerHTML = text;
+            otherReturnMessages.push({action: "file-entry", text: text, element: newSpan, output: output});
+        }
         frag.appendChild(newSpan);
     })
 
 
 
-    if (frag && !endsWithNewLine) {
-        frag.appendChild(noEOLIndicator());
-    }
+    // if (frag && !endsWithNewLine) {
+    //     frag.appendChild(noEOLIndicator());
+    // }
 
     return {frag, otherReturnMessages};
 }

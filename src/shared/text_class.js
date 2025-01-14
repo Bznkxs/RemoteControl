@@ -40,6 +40,10 @@ export class TextClass {
         return new TextClass("exit-code");
     }
 
+    static get FILE() {
+        return new TextClass("file");
+    }
+
 
 
     valueOf() {
@@ -66,11 +70,15 @@ export class TextClass {
         return this.textClassString === TextClass.EXITCODE.v;
     }
 
+    isFile() {
+        return this.textClassString === TextClass.FILE.v;
+    }
+
     isSenderMessage() {
         return this.isInput() || this.isCommand() || this.isSignal();
     }
 
     isReceiverMessage() {
-        return this.isContent() || this.isExitCode();
+        return this.isContent() || this.isExitCode() || this.isFile();
     }
 }

@@ -23,7 +23,7 @@ var MAP = function() {
     return m;
 }();
 
-function getStyles(num, gb, fullwidth) {
+export function getStyles(num, gb, fullwidth) {
 
     var fg_rgb = num&67108864 && num&134217728;
     var bg_rgb = num&16777216 && num&33554432;
@@ -51,4 +51,4 @@ function getStyles(num, gb, fullwidth) {
     return styles;
 }
 
-module.exports = {getStyles};
+// module.exports = {getStyles};

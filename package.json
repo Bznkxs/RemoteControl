@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron ."
   },
+  "type": "module",
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -14,10 +15,16 @@
     "electron-rebuild": "^3.2.9"
   },
   "dependencies": {
+    "@electron/remote": "^2.1.2",
+    "electron-find": "^1.0.7",
     "electron-squirrel-startup": "^1.0.1",
     "esm": "^3.2.25",
+    "file-type": "^19.6.0",
     "node-ansiparser": "^2.2.1",
     "node-ansiterminal": "^0.2.1-beta",
-    "node-pty": "^1.0.0"
+    "node-pty": "^1.0.0",
+    "openai": "^4.78.1",
+    "ssh-config": "^5.0.1",
+    "ssh2-sftp-client": "^11.0.0"
   }
 }

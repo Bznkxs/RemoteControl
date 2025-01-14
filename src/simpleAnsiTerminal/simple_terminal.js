@@ -1,9 +1,15 @@
-const {getStyles} = require("./parse_ansi_message.js");
+// const {getStyles} = require("./parse_ansi_message.js");
+//
+// const AnsiTerminal = require('node-ansiterminal').AnsiTerminal;
 
-const AnsiTerminal = require('node-ansiterminal').AnsiTerminal;
 
+// ESM style:
+import {getStyles} from "./parse_ansi_message.js";
+import NodeAnsiTerminal from 'node-ansiterminal';
+import {AnsiOutputStream} from "./ansi_output_stream.js";
+const {AnsiTerminal} = NodeAnsiTerminal;
 
-class SimpleTerminal extends AnsiTerminal {
+export class SimpleTerminal extends AnsiTerminal {
     constructor(...args) {
         super(...args);
         this.outputSequence = [];
@@ -47,7 +53,7 @@ class SimpleTerminal extends AnsiTerminal {
             }
         }
         if (position === "top") {  // what is the absolute row offset of the top of the screen?
-            currentRow = Math.max(0, currentRow - this.rows);
+            currentRow = Math.max(0, currentRow - this.rows + 1);
         }
         else if (position === "bottom") {  // what is the absolute row offset of the bottom (the row after last row) of the screen?
             currentRow = Math.max(this.rows, currentRow + 1);
@@ -56,7 +62,7 @@ class SimpleTerminal extends AnsiTerminal {
             currentRow = Math.min(this.rows - 1, currentRow);
         }
         if (isNaN(currentRow)) {
-            console.log(this.rows, currentRow, position, this.outputSequence)
+            // console.log(this.rows, currentRow, position, this.outputSequence)
             throw new Error("currentRow is not a number (account)", );
         }
         return currentRow;
@@ -68,13 +74,18 @@ class SimpleTerminal extends AnsiTerminal {
         // get the required row and col in outputSequence
         let currentRow = this.accountRowOffsetForScrollBack();
         if (isNaN(currentRow) ) {
-            console.log("currentRow", currentRow, this.outputSequence)
+            // console.log("currentRow", currentRow, this.outputSequence)
             throw new Error("currentRow is not a number (first)");
+        }
+        if (print) {
+            console.log("[SimpleTerminal] locatePosition", row, col, currentRow)
+            console.log("[SimpleTerminal] locatePosition", this.outputSequence.length, this.outputSequence.slice(-5));
         }
         let currentCol = 0;
 
 
         row += currentRow;
+        currentRow = 0;
         // console.log("Accounting for scrollback", row, col, currentRow)
         // console.log("current outputSequence", this.outputSequence)
         let logBuffer = "";
@@ -83,6 +94,9 @@ class SimpleTerminal extends AnsiTerminal {
             let element = this.outputSequence[i];
             if (element.lines) {
                 if (currentRow + element.lines.length > row) {
+                    if (print) {
+                        // console.log("[SimpleTerminal] locatePosition!", i, currentRow, row, col, element.lines.slice(0, 10), element.lines.length)
+                    }
                     // it's in this element. We should count the number of characters in the lines
                     let index = 0;
                     for (let j = 0; j < element.lines.length; j++) {
@@ -93,12 +107,15 @@ class SimpleTerminal extends AnsiTerminal {
                         //     }
                         // }
                         if (currentRow + j === row) {
+                            if (print) {
+                                // console.log("[SimpleTerminal] locatePosition", j, currentRow, row, col, element.lines[j].length)
+                            }
                             // logBuffer += element.lines[j];
                             let line = element.lines[j];
                             if (currentCol + line.length > col) {
                                 if (print) {
                                     // console.log(logBuffer);
-                                    // console.log(element, j, currentRow, currentCol, row, col, line.length)
+                                    // console.log("[SimpleTerminal] locatePosition@", element, j, currentRow, currentCol, row, col, line.length)
                                 }
                                 return {
                                     elementIndex: i,
@@ -113,6 +130,9 @@ class SimpleTerminal extends AnsiTerminal {
                                     // the row is in the last line of this element, but the col falls outside
                                     // and there are more elements to come
                                     currentCol += line.length;
+                                    if (print) {
+                                        // console.log("[SimpleTerminal] break")
+                                    }
                                     break;
                                 } else {  // we have found the row, but the row is not that long
                                     if (print) {
@@ -136,14 +156,17 @@ class SimpleTerminal extends AnsiTerminal {
                     // did not find the position in this element:
                     // the only way this can happen is that the row
                     // is in the last line, but the col falls outside
+                    if (currentRow + element.lines.length !== row + 1) {
+                        // console.log("[SimpleTerminal] locatePosition ERROR", currentRow, row, col, element.lines.length, element.lines[element.lines.length - 1].length)
+                    }
                 }
                 if (isNaN(currentRow) ) {
-                    console.log("currentRow", currentRow, i, element, element.lines, this.outputSequence)
+                    // console.log("currentRow", currentRow, i, element, element.lines, this.outputSequence)
                     throw new Error("currentRow is not a number (before)");
                 }
                 currentRow += element.lines.length - 1;
                 if (isNaN(currentRow) ) {
-                    console.log("currentRow", currentRow, i, element, element.lines, element.lines.length - 1, this.outputSequence)
+                    // console.log("currentRow", currentRow, i, element, element.lines, element.lines.length - 1, this.outputSequence)
                     throw new Error("currentRow is not a number");
 
                 }
@@ -275,14 +298,16 @@ class SimpleTerminal extends AnsiTerminal {
 
         this.endsWithNewLine = endsWithNewLine;
         // console.log("streamOut", continuousMessage, stream, newStartIndex)
-        return {outputSequence: stream, newStartIndex, previousEndsWithNewLine: returnPreviousEndsWithNewLine,
-        endsWithNewLine};
+        return new AnsiOutputStream(stream, newStartIndex, returnPreviousEndsWithNewLine, endsWithNewLine);
     }
     
     inst_p(s) {
         if (this.moveCursor) {
             // console.log("Move cursor", s)
-            this.moveCursor(s);
+            const retVal = this.moveCursor(s);
+            if (typeof retVal === "string") {
+                s = retVal;
+            }
             this.moveCursor = null;
         }
         let text = s;
@@ -327,6 +352,11 @@ class SimpleTerminal extends AnsiTerminal {
     }
     inst_x(flag) {
         if (flag === "\n" || flag === "\t") {
+            this.moveCursor = () => {
+                while (this.getLastOutputElement() !== null && this.getLastOutputElement().fallback === "\\r") {
+                    this.removeLastOutputElement(true);
+                }
+            }
             return this.inst_p(flag);
         }
         if (flag === "\x07") {
@@ -423,8 +453,15 @@ class SimpleTerminal extends AnsiTerminal {
         return this.outputSequence[this.outputSequence.length - 1];
     }
 
-    removeLastOutputElement() {
-        this.outputSequence.pop();
+    removeLastOutputElement(safe=false) {
+        if (safe) {
+            if (this.streamTailLine <= this.outputSequence.length) {
+                this.outputSequence.pop();
+            }
+        } else {
+            this.outputSequence.pop();
+        }
+
         if (this.streamTailLine > this.outputSequence.length) {
             this.streamTailLine = this.outputSequence.length;
         }
@@ -485,7 +522,10 @@ class SimpleTerminal extends AnsiTerminal {
     CUP(params) {
         const row = ((params) ? (params[0] || 1) : 1) - 1;
         const col = ((params) ? (params[1] || 1) : 1) - 1;
-        const position = this.locatePosition(row, col, true);
+        const position = this.locatePosition(row, col, (row === 28 && col === 79));
+        if (row === 28 && col === 79) {
+            // console.log("[SimpleTerminal] CUP!", this.accountRowOffsetForScrollBack(), position, row, col, this.outputSequence.length)
+        }
         // console.log("CUP", position, row, col, this.outputSequence.length)
         const {elementIndex, lineIndex, charIndex, colIndex, trailingCol, trailingRow} = position;
         const defaultFallback = () => {
@@ -497,58 +537,87 @@ class SimpleTerminal extends AnsiTerminal {
             });
         }
         if (elementIndex && trailingRow === 0) {  // the position is in one of the existing elements
-            if (elementIndex < this.lastMergedStreamTailLine) {  // the position falls in the scrollback buffer
 
+            let allEmptyLineAfter = true;  // check if all lines after the position are empty
+            // console.log("Check all empty lines after", lineIndex, this.outputSequence[elementIndex].lines.length)
+            let newLineIndex = 1;  // if 1, search from the next line
+            let charsInLineAfterPosition = this.outputSequence[elementIndex].lines[lineIndex].slice(colIndex);
+            for (let i = lineIndex + 1; i < this.outputSequence[elementIndex].lines.length; i++) {
+                if (this.outputSequence[elementIndex].lines[i].trim() !== "") {
+                    allEmptyLineAfter = false;
+                    break;
+                }
+                newLineIndex = 0;
+            }
+            for (let i = elementIndex + 1; i < this.outputSequence.length; i++) {
+                if (this.outputSequence[i].lines) {  // for all elements after the position that are in the same line of the position, ignore that line
+                    if (newLineIndex) {
+                        charsInLineAfterPosition += this.outputSequence[i].lines[0];
+                    }
+                    for (let j = newLineIndex; j < this.outputSequence[i].lines.length; j++) {
+                        if (this.outputSequence[i].lines[j].trim() !== "") {
+                            allEmptyLineAfter = false;
+                            break;
+                        }
+                        newLineIndex = 0;
+                    }
+                    if (!allEmptyLineAfter) {
+                        break;
+                    }
+                }
+                else {  // if this element is not a text element, we cannot delete it.
+                    allEmptyLineAfter = false;
+                    break;
+                }
+            }
+
+            if (row === 28 && col === 79) {
+                // console.log("[SimpleTerminal] CUP@", this.accountRowOffsetForScrollBack(), position, row, col, this.outputSequence.length, trailingCol, trailingRow, allEmptyLineAfter, charsInLineAfterPosition)
+                // console.log("[SimpleTerminal] CUP#", this.outputSequence[elementIndex], this.outputSequence[elementIndex - 1], this.outputSequence[elementIndex].lines[lineIndex])
+            }
+            // if (lineIndex === this.outputSequence[elementIndex].lines.length - 1 && colIndex === this.outputSequence[elementIndex].text.length - 1 && trailingCol === 0) {
+            //     this.moveCursor = (messageToPrint) => {
+            //         if (messageToPrint.length > 0 && messageToPrint.charAt(0) === this.outputSequence[elementIndex].text.charAt(charIndex)) {
+            //             messageToPrint = messageToPrint.slice(1);
+            //             return messageToPrint;
+            //         } else {
+            //             defaultFallback();
+            //         }
+            //     }
+            //     return;
+            // }
+
+            if (elementIndex < this.lastMergedStreamTailLine) {  // the position falls in the scrollback buffer
+                // special case: if the position is in the last line
+                if (row === 28 && col === 79) {
+                    console.log("[SimpleTerminal] CUP scrollback", row, col, position)
+                }
                 // console.log("inside CUP", position, this.lastTextElementIndex, this.outputSequence[elementIndex].text.length - 1);
                 return defaultFallback();
 
 
             } else {  // the position falls in the current buffer; we need to check if position is not at the last line of the text
-                let allEmptyLineAfter = true;  // check if all lines after the position are empty
-                // console.log("Check all empty lines after", lineIndex, this.outputSequence[elementIndex].lines.length)
-                let newLineIndex = 1;
-                let charsInLineAfterPosition = this.outputSequence[elementIndex].lines[lineIndex].slice(colIndex);
-                for (let i = lineIndex + 1; i < this.outputSequence[elementIndex].lines.length; i++) {
-                    if (this.outputSequence[elementIndex].lines[i].trim() !== "") {
-                        allEmptyLineAfter = false;
-                        break;
-                    }
-                    newLineIndex = 0;
+
+                if (row === 28 && col === 79) {
+                    console.log("[SimpleTerminal] CUP current", row, col, position)
                 }
 
-                for (let i = elementIndex + 1; i < this.outputSequence.length; i++) {
-                    if (this.outputSequence[i].lines) {  // for all elements after the position that are in the same line of the position, ignore that line
-                        if (newLineIndex) {
-                            charsInLineAfterPosition += this.outputSequence[i].lines[0];
-                        }
-                        for (let j = newLineIndex; j < this.outputSequence[i].lines.length; j++) {
-                            if (this.outputSequence[i].lines[j].trim() !== "") {
-                                allEmptyLineAfter = false;
-                                break;
-                            }
-                            newLineIndex = 0;
-                        }
-                        if (!allEmptyLineAfter) {
-                            break;
-                        }
-                    }
-                    else {  // if this element is not a text element, we cannot delete it.
-                        allEmptyLineAfter = false;
-                        break;
-                    }
-                }
                 if (allEmptyLineAfter) {  // if the position is in the last non-empty line: put into buffer
                     const elementsToRemove = this.outputSequence.length - elementIndex - 1;  // any element after elementIndex should be removed
                     let nonEmptyCharsToOverwrite = charsInLineAfterPosition.trimEnd().length;
 
                     // since we move the cursor there, we delete all characters after the cursor
-                    console.log("CUP buffered", row, col, position)
+                    if (row === 28 && col === 79) {
+                        console.log("[SimpleTerminal] CUP buffered", row, col, position)
+                    }
+
                     this.moveCursor = (messageToPrint) => {
-                        console.log("Move cursor", messageToPrint, messageToPrint.length, elementsToRemove, nonEmptyCharsToOverwrite)
+                        // console.log("Move cursor", messageToPrint, messageToPrint.length, elementsToRemove, nonEmptyCharsToOverwrite)
                         if (elementIndex >= this.lastMergedStreamTailLine && messageToPrint.length >= nonEmptyCharsToOverwrite) {
                             this.outputSequence[elementIndex].text = this.outputSequence[elementIndex].text.slice(0, charIndex);
                             this.maintainOutputElement(this.outputSequence[elementIndex]);
                             for (let i = 0; i < elementsToRemove; i++) {
+                                // console.log("Remove element", this.outputSequence[this.outputSequence.length - 1])
                                 this.removeLastOutputElement();
                             }
                         } else {
@@ -557,11 +626,16 @@ class SimpleTerminal extends AnsiTerminal {
                     }
                     return;
                 } else {
+                    if (row === 28 && col === 79) {
+                        console.log("[SimpleTerminal] CUP non-empty", row, col, position)
+                    }
                     return defaultFallback();
                 }
             }
         }
-        // console.log("outside CUP", position, this.lastTextElementIndex, elementIndex === null? null:this.outputSequence[elementIndex].text.length - 1)
+        if (row === 28 && col === 79) {
+            // console.log("outside CUP", position, this.lastTextElementIndex, elementIndex === null ? null : this.outputSequence[elementIndex].text.length - 1)
+        }
         this.moveCursor = () => {this.extendToPositionWithWhiteSpace({row, col, position});}  // fill the gap with white space
     }
 
@@ -596,4 +670,4 @@ class SimpleTerminal extends AnsiTerminal {
 };
 
 
-module.exports = {SimpleTerminal};
+// module.exports = {SimpleTerminal};

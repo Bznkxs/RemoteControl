@@ -34,6 +34,8 @@ import {RemoteControlContext} from "./automaton/context.js";
 import {deserializeFunction} from "./automaton/serialize_deserialize.js";
 import {TabElementWrapper} from "./elements/tab_element.js";
 import {VisualizedConversationManager} from "./conversation/conversation_manager.js";
+import {SearchWidget} from "./search/search_widget.js";
+import {ChatGPTWidget} from "./chatgpt/chatgpt_widget.js";
 
 console.log('👋 This message is being logged by "renderer.js", included via webpack');
 
@@ -43,14 +45,14 @@ console.log('👋 This message is being logged by "renderer.js", included via we
 function unused(...args) {}
 
 const functionalityTabWrapper = new TabElementWrapper(document.body, "parent-tab");
-const terminalEmulatorTabPageElementWrapper = functionalityTabWrapper.createTab("Terminal Emulator");
-unused(terminalEmulatorTabPageElementWrapper);
-const loadFileTabPageElementWrapper = functionalityTabWrapper.createTab("Load File");
+const terminalEmulatorTabPageElementWrapper = functionalityTabWrapper.createTab({tabName: "Terminal Emulator"});
+const loadFileTabPageElementWrapper = functionalityTabWrapper.createTab({tabName: "Load File"});
+const chatGPTTabPageElementWrapper = functionalityTabWrapper.createTab({tabName: "ChatGPT"});
 
 // create file tab
 
 const fileTabWrapper = new TabElementWrapper(loadFileTabPageElementWrapper.tabContentElement, "file-tab");
-const fileTabContentWrapper = fileTabWrapper.createTab("File");
+const fileTabContentWrapper = fileTabWrapper.createTab({tabName: "File"});
 const fileTabContent = fileTabContentWrapper.tabContentElement;
 const fileContainerFrame = document.createElement("div");
 fileContainerFrame.id = fileTabContentWrapper.id + "-file-container-frame";
@@ -97,14 +99,19 @@ startFileButton.classList.add("button");
 startFileButton.innerText = "Start";
 fileClickableContainer.appendChild(startFileButton);
 
+// create chatGPT tab
+const chatGPTWidget = new ChatGPTWidget(chatGPTTabPageElementWrapper, window.chatGPTAPI);
+
 
 const visualizedConversationManager = new VisualizedConversationManager(
     "visualizedConversationManager",
     window.communicationAPI,
-    terminalEmulatorTabPageElementWrapper.tabContentElement
+    terminalEmulatorTabPageElementWrapper
 )
 
-const conversation = visualizedConversationManager.createConversation({command: "ssh.exe dai", })
+visualizedConversationManager.tabElementWrapper.defaultNewTabConfig.otherConfig = {command: "powershell.exe", eol: "\r"};
+
+const conversation = visualizedConversationManager.createConversation({command: "!ubuntu.exe", stdin: "sftp dai", eol: "\n"})
 
 
 function logFileContent(content) {
@@ -143,7 +150,7 @@ function setRemoteControlSequence(commandSeqString, proxyContext) {
     });
 }
 
-fileInput.value="test/ssh_dai.js"
+fileInput.value="test/sftp.js"
 
 
 // proxy
@@ -196,7 +203,25 @@ loadFileButton.addEventListener("click", () => {
     setRemoteControlSequence(content, proxyContext);
 });
 
-loadFileButton.click();
+// loadFileButton.click();
 
 
-
+const searchWidget = new SearchWidget();
+visualizedConversationManager.tabElementWrapper.onSelectedTab((tab) => {
+    updateSearchWidgetStatus();
+});
+const updateSearchWidgetStatus = () => {
+    if (functionalityTabWrapper.currentTab === terminalEmulatorTabPageElementWrapper && visualizedConversationManager.tabElementWrapper.currentTab) {
+        searchWidget.setDisabled(false);
+        searchWidget.selectContainer(visualizedConversationManager.tabElementWrapper.currentTab.conversationContainer);
+    } else {
+        searchWidget.setDisabled(true);
+    }
+}
+visualizedConversationManager.tabElementWrapper.onTabChange((e) => {
+    updateSearchWidgetStatus();
+})
+functionalityTabWrapper.onSelectedTab((tab) => {
+    console.log("[Renderer] Selected tab", tab);
+    updateSearchWidgetStatus();
+})

@@ -60,7 +60,7 @@ class RemoteControlContext extends BaseRemoteControlContext {
         //     console.log("Data is a string");
         //     data = TerminalTextLogMessage.createMessageWithCurrentTime(data, TextClass.INPUT, true, password);
         // }
-        this.callables.write(data);
+        this.callables.write(data, {password: password});
         const writeInstance = {
             data: data
         };

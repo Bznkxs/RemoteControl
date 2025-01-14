@@ -179,6 +179,7 @@ class Channel {
 const communicationAPI = {
     channels : {},
     createChannel: (channelId) => {
+        console.log("[CommunicationAPI] Creating channel", channelId);
         communicationAPI.channels[channelId] = new Channel(channelId);
     },
     removeChannel: (channelId) => {
@@ -195,7 +196,10 @@ const communicationAPI = {
         communicationAPI.channels[channelId].sendCommand(commandString);
     },
     onSerializedMessage: (channelId, callback) => {
-        communicationAPI.channels[channelId].onSerializedMessage(callback);
+        communicationAPI.channels[channelId].onSerializedMessage((...args) => {
+            console.log(`[CommunicationAPI] Channel ${channelId} Received message`, args);
+            callback(...args);
+        });
     },
     removeSerializedMessageListener: (channelId, callback) => {
         communicationAPI.channels[channelId].removeSerializedMessageListener(callback);
@@ -206,3 +210,12 @@ const communicationAPI = {
 };
 
 contextBridge.exposeInMainWorld('communicationAPI', communicationAPI);
+
+contextBridge.exposeInMainWorld("chatGPTAPI", {
+    createChatGPT: (configPath, problemText) => ipcRenderer.send("create-chatgpt", configPath, problemText),
+    onChatGPTMessage: (callback) => {
+        ipcRenderer.on("chatgpt-send-message", (event, message) => {
+            callback(message);
+        });
+    }
+});

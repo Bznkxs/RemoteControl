@@ -1,4 +1,4 @@
-class Log {
+export class Log {
     /**
      * @param {Array<TerminalTextLogMessage>?} messages
      */
@@ -27,4 +27,4 @@ class Log {
     }
 }
 
-module.exports = {Log};
+// module.exports = {Log};

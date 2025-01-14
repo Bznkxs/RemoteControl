@@ -1,5 +1,8 @@
-const {BaseChildProcessWrapper, ChildProcessWrapper} = require("./child_process_wrapper.js");
+// const {BaseChildProcessWrapper, ChildProcessWrapper, SFTPWrapper} = require("./child_process_wrapper.js");
 
+// ESM style:
+import {BaseChildProcessWrapper, ChildProcessWrapper} from "./child_process_wrapper.js";
+import {SFTPWrapper} from "./sftp_wrapper.js";
 const defaultListeners = {
     onSpawnedCallback: null,
     onExitCallback: null,
@@ -8,13 +11,15 @@ const defaultListeners = {
     onStdinCallback: null
 }
 
-class CommandProcessor {
-    constructor() {
+export class CommandProcessor {
+    constructor(name) {
         this.childProcess = new BaseChildProcessWrapper();
-        this.listeners = defaultListeners;
+        this.listeners = {...defaultListeners};
+        this.name = name;
     }
 
     connectSignals(listeners=defaultListeners) {
+        console.log(`[CommandProcessor] ${this.name} connectSignals`)
         for (const signal in listeners) {
             if (listeners[signal]) {
                 this.listeners[signal] = listeners[signal];
@@ -22,8 +27,9 @@ class CommandProcessor {
         }
     }
 
-    createChildProcess(command, args) {
-        this.childProcess = new ChildProcessWrapper(command, args, () => {
+    createChildProcess(message) {
+        const childProcessClass = message.sftp ? SFTPWrapper : ChildProcessWrapper;
+        this.childProcess = new childProcessClass(message.command, message.args, () => {
             if (this.listeners.onSpawnedCallback !== null) return this.listeners.onSpawnedCallback()
         });
         this.childProcess.onStdout((data) => {
@@ -45,6 +51,11 @@ class CommandProcessor {
     killChildProcess() {
         this.childProcess.kill();
     }
+
+    changeChildToSFTP() {
+        this.childProcess = new SFTPWrapper()
+    }
 }
 
-module.exports = { CommandProcessor };
+
+// module.exports = { CommandProcessor };

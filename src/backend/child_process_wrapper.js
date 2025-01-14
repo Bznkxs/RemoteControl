@@ -1,6 +1,19 @@
-const pty = require('node-pty');
+// const pty = require('node-pty');
+// const fs = require('fs');
+// const os = require('os');
+// const {ChildProcessOutput} = require("child_process_output.js");
+// const path = require("path");
 
-class BaseChildProcessWrapper {
+
+// ESM style:
+import pty from 'node-pty';
+import fs from 'fs';
+import os from 'os';
+import {ChildProcessOutput} from './child_process_output.js';
+import path from 'path';
+
+
+export class BaseChildProcessWrapper {
     constructor(...args) {
     }
 
@@ -12,7 +25,7 @@ class BaseChildProcessWrapper {
     isRunning = () => {}
 }
 
-class ChildProcessWrapper extends BaseChildProcessWrapper {
+export class ChildProcessWrapper extends BaseChildProcessWrapper {
     constructor(command, args, onSpawnedCallback, options={
         env: process.env,
         cwd: process.cwd(),
@@ -24,14 +37,17 @@ class ChildProcessWrapper extends BaseChildProcessWrapper {
 
         this.isProcessRunning = true;
         this.childProcess.onExit(this.defaultOnExitListener);
+        this.childProcess.onData(this.defaultOnDataListener);
         onSpawnedCallback();
 
         this.onDataListeners = [];
         this.onExitListeners = [];
+        this.eol = "\r\n";
     }
 
     sendToChild = (data) => {
         if (this.isRunning()) {
+            console.log("[ChildProcessWrapper] Sending data to child process", JSON.stringify(data))
             this.childProcess.write(data);
         }
 
@@ -51,9 +67,20 @@ class ChildProcessWrapper extends BaseChildProcessWrapper {
         }
     }
 
+
+    /**
+     *
+     * @param {function(ChildProcessOutput)} callback
+     */
     onStdout = (callback) => {
-        this.childProcess.onData(callback);
         this.onDataListeners.push(callback);
+    }
+
+    defaultOnDataListener = (data) => {
+        console.log("[ChildProcessWrapper] Received data from child process", JSON.stringify(data))
+        this.onDataListeners.forEach((listener) => {
+            listener(new ChildProcessOutput(data));
+        });
     }
 
     onStderr = (callback) => {
@@ -62,13 +89,15 @@ class ChildProcessWrapper extends BaseChildProcessWrapper {
 
     onExit = (callback) => {
         this.onExitListeners.push(callback);
-        this.childProcess.onExit(callback);
     }
 
     defaultOnExitListener = (e) => {
         this.isProcessRunning = false;
         this.returnCode = e;
         console.log("[ChildProcessWrapper] Process exited with code", e);
+        this.onExitListeners.forEach((listener) => {
+            listener(e);
+        });
     }
 
     isRunning = () => {
@@ -76,4 +105,7 @@ class ChildProcessWrapper extends BaseChildProcessWrapper {
     }
 }
 
-module.exports = {BaseChildProcessWrapper, ChildProcessWrapper};
+
+
+//
+// module.exports = {BaseChildProcessWrapper, ChildProcessWrapper, SFTPWrapper};

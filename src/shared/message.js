@@ -1,5 +1,6 @@
 import {TextClass} from "./text_class.js";
 
+
 export class TerminalTextLogMessage {
     /**
      * @param {string} text
@@ -16,6 +17,8 @@ export class TerminalTextLogMessage {
         this.textClass = new TextClass(textClass);
         if (isInput || this.textClass.v === TextClass.INPUT.v) {
             this.isInput = true;
+        } else {
+            this.isInput = false;
         }
         this.password = password;
     }
@@ -26,12 +29,123 @@ export class TerminalTextLogMessage {
      * @param isInput
      * @param password
      */
-    static createMessageWithCurrentTime(text, textClass, isInput = false, password = false) {
+    static createMessageWithCurrentTime(text, textClass, isInput = false, password = false, kwargs = {}) {
         if (this.allowedTextClasses.has(textClass.v)) {
-            return new this({text, time: new Date(), textClass, isInput, password});
+            return new this({text, time: new Date(), textClass, isInput, password, ansiOutputStream: kwargs.ansiOutputStream});
         } else {
             throw new Error(`Text class ${textClass} is not allowed for this log`);
         }
+    }
+
+    static createOutputMessageWithCurrentTime({text, end, args}, ansiOutputStream, endStream) {
+        console.log("[TerminalTextLogMessage] createOutputMessageWithCurrentTime:", text.slice(0, 100), args);
+        const message =  new this({text: text + (end || ""), time: new Date(), textClass: TextClass.CONTENT, ansiOutputStream, isInput: false, password: false});
+        if (args) {
+            if (args.pwd && args.pwd.envelope) {
+                args.pwd = args.pwd.getPwd();
+            }
+            console.log("[TerminalTextLogMessage] createOutputMessageWithCurrentTime: args", args);
+            if (args.command.startsWith("ls")) {
+
+                // parse arg to get if -l is used
+                const argList = args.command.split(" ");
+                let longListing = false;
+                for (let i = 0; i < argList.length; i++) {
+                    const arg = argList[i];
+                    if (arg.startsWith('-') && arg.includes('l')) {
+                        longListing = true;
+                        break;
+                    }
+                }
+                let lastOutputEndsWithSpace = true;
+                let newOutputSequence = [];
+                for (let i = 0; i < message.ansiOutputStream.outputSequence.length; i++) {
+                    const output = message.ansiOutputStream.outputSequence[i];
+                    if (typeof output.text === "string") {
+                        let separator = /[\t\n]+| {4,}/;
+                        if (longListing) separator = /\n+/;
+                        const lines = output.text.split(separator);
+                        const newLines = [];
+                        output.actionArgs = [];
+                        for (let j = 0; j < lines.length; j++) {
+                            const line = lines[j];
+                            let parts;
+                            if (longListing) {
+                                parts = line.split(/\s+/);
+                            } else {
+                                parts = [line];
+                            }
+                            let entry;
+                            if (parts.length >= 9) {
+                                const permissions = parts[0];
+                                const owner = parts[2];
+                                const group = parts[3];
+                                const size = parts[4];
+                                const date = parts.slice(5, 7);
+                                const time = parts[7];
+                                const name = parts.slice(8).join(" ");
+                                const modified = date + ' ' + time; // new Date(date + " " + time);
+                                entry = {
+                                    permissions: permissions,
+                                    owner: owner,
+                                    group: group,
+                                    size: size,
+                                    modified: modified,
+                                    name: name,
+                                    pwd: args.pwd,
+                                };
+                                parts[8] = `<span class="file-name">${parts[8]}</span>`;
+
+                            }
+                            else {
+                                const outputStartsWithSpace = line.trimStart().length !== line.length;
+                                console.log(`[TerminalTextLogMessage] createOutputMessageWithCurrentTime: ${i} ${j} Judge`, parts, outputStartsWithSpace, lastOutputEndsWithSpace, newLines.length);
+                                if (parts.length < 3) {
+
+                                    if (j === 0 && !outputStartsWithSpace && !lastOutputEndsWithSpace && newOutputSequence.length > 0) {
+                                        // merge with the previous line
+                                        let lastOutput = newOutputSequence.pop();
+                                        const lastEntry = lastOutput.actionArgs[0];
+                                        lastOutput.text = lastOutput.text.replace("</span>\n", parts[0] + "</span>\n");
+                                        lastEntry.name += parts[0];
+                                        newOutputSequence.push(lastOutput);
+                                        console.log(`[TerminalTextLogMessage] createOutputMessageWithCurrentTime: ${i} ${j} Update file-entry`, lastOutput.text);
+                                        parts = parts.slice(1);
+                                    }
+
+                                }
+                                if (parts.length === 0) {
+                                    continue;
+                                }
+                                entry = {
+                                    name:  parts.join(" ") ,
+                                    pwd: args.pwd
+                                };
+                                parts = [ "<span class=\"file-name\">" + parts.join(" ") + "</span>\n"];
+                            }
+                            const newOutput = {
+                                text: parts.join(" "),
+                                elementClass: output.actionClass,
+                                elementStyle: output.elementStyle,
+                                actionClass: "file-entry",
+                                actionArgs: [entry]
+                            };
+                            newOutputSequence.push(newOutput);
+                            console.log(`[TerminalTextLogMessage] createOutputMessageWithCurrentTime: file-entry`, JSON.stringify(line), parts.join(" "));
+                            lastOutputEndsWithSpace = line.trimEnd().length !== line.length;
+                        }
+
+                        // output.text = newLines.join("\n");
+                    }
+                }
+                message.ansiOutputStream.outputSequence = newOutputSequence;
+            }
+        }
+        if (endStream && message.ansiOutputStream) {
+            message.ansiOutputStream.outputSequence.push(...endStream.outputSequence);
+            message.ansiOutputStream.endsWithNewline = endStream.endsWithNewline;
+        }
+        return message;
     }
 
     isLogSubclass(subclass) {
@@ -40,7 +154,7 @@ export class TerminalTextLogMessage {
 
     to(subclass) {
         if (this.isLogSubclass(subclass)) {
-            return subclass.createMessageWithCurrentTime(this.text, this.textClass);
+            return subclass.createMessageWithCurrentTime(this.text, this.textClass, false, false, {ansiOutputStream: null});
         } else {
             throw new Error(`Cannot convert log to subclass ${subclass}`);
         }
@@ -52,7 +166,8 @@ export class TerminalTextLogMessage {
             TextClass.INPUT.v,
             TextClass.COMMAND.v,
             TextClass.EXITCODE.v,
-            TextClass.SIGNAL.v
+            TextClass.SIGNAL.v,
+            TextClass.FILE.v
         ]);
     }
 
@@ -83,16 +198,20 @@ export class TerminalCommandLogMessage extends TerminalTextLogMessage {
      * @param command
      * @param argList
      */
-    constructor({text, time, isInput = true, argList=null}) {
+    constructor({text, time, isInput = true, argList=null, sftp=null}) {
         if (argList === null) {
             super({text, time, textClass: TextClass.COMMAND, isInput});
-            this.argList = this.constructor.splitCommand(text);
+            let options;
+            ({argList, options} = this.constructor.splitCommand(text));
+            this.argList = argList;
+            this.sftp = sftp === null ? options.sftp : sftp;
         } else {
             if (text === undefined) {
                 text = argList.join(" ");
             }
             super({text, time, textClass: TextClass.COMMAND, isInput});
             this.argList = argList;
+            this.sftp = sftp;
         }
     }
 
@@ -102,7 +221,8 @@ export class TerminalCommandLogMessage extends TerminalTextLogMessage {
             time: this.time,
             textClass: this.textClass.v,
             isInput: this.isInput,
-            argList: this.argList
+            argList: this.argList,
+            sftp: this.sftp
         };
     }
 
@@ -124,6 +244,7 @@ export class TerminalCommandLogMessage extends TerminalTextLogMessage {
      */
     static splitCommand(text) {
         // pair quotes
+        let sftp = false;
         let inQuote = false;
         let lastQuote = null;
         const tokens = [];
@@ -131,6 +252,10 @@ export class TerminalCommandLogMessage extends TerminalTextLogMessage {
         let buffer = "";
         for (let i = 0; i < text.length; i++) {
             const char = text[i];
+            if (i === 0 && char === "!") {
+                sftp = true;
+                continue;
+            }
             let addToken = true;
             /*
               The chars are added to the latest token in the following way:
@@ -190,7 +315,7 @@ export class TerminalCommandLogMessage extends TerminalTextLogMessage {
         if (token) {
             tokens.push(token);
         }
-        return tokens;
+        return {argList: tokens, options: {sftp: sftp}};
     }
 
     get command() {
