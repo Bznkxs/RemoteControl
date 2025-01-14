@@ -2,7 +2,7 @@ const { app, BrowserWindow } = await import ('electron');
 const path = await import ('node:path');
 const {started} = await import ('electron-squirrel-startup');
 const {ipcMain} = await import ('electron');
-const {ConversationHandler} = await import ("./backend/conversation_handler.js");
+// const {ConversationHandler} = await import ("./backend/conversation_handler.js");
 const fs = await import ('fs');
 const {OpenAIChatStudentExpertPair} = await import ("./backend/chatgpt.js");
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -22,12 +22,15 @@ const createWindow = () => {
   });
 
   // and load the index.html of the app.
-  mainWindow.loadURL(path.join(process.cwd(),'src','frontend', 'index.html'));
-
+  const indexHtmlPath = `file://${path.join(process.cwd(),'src','frontend', 'index.html')}`;
+  mainWindow.loadURL(indexHtmlPath).catch((error) => {
+    console.error("Error loading", indexHtmlPath, error);
+  });
+  console.log("Loaded index.html");
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
-  //
-  const conversationHandler = new ConversationHandler(mainWindow);
+  console.log("Opened DevTools");
+  // const conversationHandler = new ConversationHandler(mainWindow);
 
     ipcMain.on("create-chatgpt", (event, configPath, problemText) => {
 
@@ -44,6 +47,7 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  console.log("App ready");
   createWindow();
 
   // On OS X it's common to re-create a window in the app when the
