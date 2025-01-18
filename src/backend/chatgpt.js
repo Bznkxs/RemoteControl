@@ -21,6 +21,7 @@ export class OpenAIChatStudentExpertPair {
         this.presence_penalty = this.config.presence_penalty || 0;
         this.messageUpdateCallback = messageUpdateCallback || (() => {});
         this.forceStop = false;
+        this.model = this.config.model || "chatgpt-4o-latest";
     }
 
     forceStopChat() {
@@ -28,20 +29,35 @@ export class OpenAIChatStudentExpertPair {
     }
 
     async streamChat(messages, callback) {
-        const chatConfig = {
-            model: "chatgpt-4o-latest",
-            messages: messages,
-            stream: true,
-            temperature: this.temperature,
-            max_completion_tokens: this.max_completion_tokens,
-            top_p: this.top_p,
-            frequency_penalty: this.frequency_penalty,
-            presence_penalty: this.presence_penalty,
+        const createConfig = (messages) => {
+            return {
+                model: this.model,
+                messages: messages,
+                stream: true,
+                temperature: this.temperature,
+                max_completion_tokens: this.max_completion_tokens,
+                top_p: this.top_p,
+                frequency_penalty: this.frequency_penalty,
+                presence_penalty: this.presence_penalty,
+            }
         }
+        let chatConfig = createConfig(messages);
         console.log("Send messages: ", messages[messages.length-1])
-        const stream = await this.openai.chat.completions.create(chatConfig);
+        let stream;
+        try {
+            stream = await this.openai.chat.completions.create(chatConfig);
+        } catch (e) {
+            if (e.message.search("does not support 'system'") !== -1) {
+                for (const message of messages) {
+                    if (message.role === "system") {
+                        message.role = "user";
+                    }
+                }
+                chatConfig = createConfig(messages);
+            }
+            stream = await this.openai.chat.completions.create(chatConfig);
+        }
         for await (const chunk of stream) {
-            console.log("Chunk: ", chunk.choices[0]?.delta?.content || "")
             callback(chunk.choices[0]?.delta?.content || "");
         }
     }

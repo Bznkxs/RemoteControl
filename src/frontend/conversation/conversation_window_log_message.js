@@ -99,7 +99,13 @@ export class ConversationWindowLogMessage {
                 messageContentElement.appendChild(contentElement);
                 const exitCodeElement = this.constructor.createContentElement(String(message.text.exitCode));
                 messageContentElement.appendChild(exitCodeElement);
-            } else {
+            } else if (message.textClass.v === TextClass.FILE.v) {
+                messageContentElement.classList.add(contentElementClassForMessage);
+                const textToParse = this.getParsedMessage();
+                const contentElement = this.constructor.createContentElement(textToParse, 'file');
+                messageContentElement.appendChild(contentElement);
+            }
+            else {  //(message.textClass.v === TextClass.CONTENT.v)
                 messageContentElement.classList.add(contentElementClassForMessage);
                 const textToParse = this.getParsedMessage();
                 const contentElement = this.constructor.createContentElement(textToParse, 'default');
@@ -161,6 +167,15 @@ export class ConversationWindowLogMessage {
                     this.otherReturnMessages = otherReturnMessages;
                 }
                 else this.generateMessage = false;
+            } else if (message.textClass.v === TextClass.FILE.v) {
+                htmlSnippet = message.text;
+                if (message.otherArgs && message.otherArgs.fileType.startsWith('image')) {
+                    const img = document.createElement('img');
+                    img.src = "data:" + message.otherArgs.fileType + ";base64," + message.text;
+                    img.alt = message.otherArgs.path;
+                    img.classList.add('file');
+                    htmlSnippet = img;
+                }
             }
             this.parsedMessage = htmlSnippet;
         }
@@ -173,6 +188,16 @@ export class ConversationWindowLogMessage {
             const logLevelElement = document.createElement('div');
             logLevelElement.classList.add('logLevel');
             logLevelElement.innerText = this.getMessage().textClass.v;
+            if (this.getMessage().textClass.v === TextClass.FILE.v ) {
+                if (this.getMessage().otherArgs && this.getMessage().otherArgs.fileType) {
+                    logLevelElement.innerText = this.getMessage().otherArgs.fileType;
+                } else {
+                    logLevelElement.innerText = 'unknown';
+                }
+                if (this.getMessage().otherArgs && this.getMessage().otherArgs.remotePath) {
+                    logLevelElement.innerText += `: ${this.getMessage().otherArgs.remotePath}`;
+                }
+            }
             this.logLevelElement = logLevelElement;
         }
         return this.logLevelElement;

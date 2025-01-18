@@ -283,7 +283,12 @@ body {
   /* capitalize */
   display: inline-block;
   margin-left: 0.5ch;
-    text-transform: capitalize;
+    /*text-transform: capitalize;*/
+}
+
+img {
+    max-width: 100%;
+  height: auto;
 }
 
 .contentVisibilityButton {

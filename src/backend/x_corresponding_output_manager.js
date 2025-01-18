@@ -13,7 +13,7 @@ export class Correspondence {
 
 export class ListenForEndOfSessionCommand extends commands.ExitContextCommand {
     constructor() {
-        super("ListenForEndOfSessionCommand");
+        super("ListenForEndOfSessionCommand", null, true);
     }
 
     isEndOfSession(output) {
@@ -42,22 +42,40 @@ export class CommandBuffer {
         this.defaultCommand = options.defaultCommand;
     }
 
+    /**
+     * Internal function to execute the current (head) command in the buffer.
+     */
     executeCurrentCommandInBuffer() {
         this.executeCurrentCommandInBufferCallback(this.currentCommand());
     }
 
+
+    /**
+     * Push a command to the tail of the buffer queue. If the buffer is empty, execute the command immediately.
+     * @param command
+     */
     push(command) {
+        console.log("[CommandBuffer] push", JSON.stringify(command));
         const length = this.commandBuffer.length;
         this.commandBuffer.push(command);
         if (length === 0) {
+            console.log("[CommandBuffer] push.executeCurrent", JSON.stringify(command));
             this.executeCurrentCommandInBuffer();
         }
     }
 
+    /**
+     * Return the current (head) command in the buffer queue.
+     * @returns {*}
+     */
     currentCommand() {
         return this.commandBuffer[0] || this.defaultCommand;
     }
 
+    /**
+     * Substitute the current (head) command with a list of commands. The first command in the list will be executed
+     * @param commandList
+     */
     substituteCurrentCommand(commandList) {
         if (this.commandBuffer.length === 0) {
             commandList.forEach((command) => this.push(command));
@@ -80,9 +98,32 @@ export class CommandBuffer {
 
 }
 
+/**
+ *
+ */
 export class OutputEvent {
-    constructor(ansiOutputStream) {
+    /**
+     * A wrapper for formatted ansi output. Takes in two argument, the raw text, and ansi output stream.
+     * Use .text to access the raw text and .ansiOutputStream to access the ansi output stream.
+     * @param {string} text
+     * @param {AnsiOutputStream?} ansiOutputStream
+     */
+    constructor(text, ansiOutputStream) {
+        this.text = text;
         this.ansiOutputStream = ansiOutputStream;
+        this.identifier = OutputEvent.generateIdentifier();
+    }
+
+    static identifiers = [];
+
+    /**
+     * Generate a unique identifier for the output event.
+     * @returns {string}
+     */
+    static generateIdentifier() {
+        const identifier = `OutputEvent${OutputEvent.identifiers.length}`;
+        this.identifiers.push(identifier);
+        return identifier;
     }
 }
 

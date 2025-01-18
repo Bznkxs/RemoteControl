@@ -308,7 +308,8 @@ export class ConversationWindow extends TabPageElementWrapper {
                             fileNameElement.classList.remove("file-name");
                             continue;
                         }
-                        const fullName = entry.pwd + (entry.pwd.endsWith("/") ? "" : "/") + entry.name
+                        const prefix = entry.pwd + (entry.pwd.endsWith("/") ? "" : "/");
+                        const fullName = entry.name.startsWith(entry.pwd) ? entry.name : prefix + entry.name;
                         const command = "!open " + fullName;
                         fileNameElement.addEventListener("click", () => {
                             console.log("[ConversationWindow] File entry clicked", output, ". Sending command: " + command);

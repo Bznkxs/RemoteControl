@@ -2,7 +2,9 @@
 
 // ESM style:
 import {BaseChildProcessWrapper, ChildProcessWrapper} from "./child_process_wrapper.js";
-import {SFTPWrapper} from "./sftp_wrapper.js";
+import fs from "fs";
+import path from "path";
+import os from "os";
 const defaultListeners = {
     onSpawnedCallback: null,
     onExitCallback: null,
@@ -27,8 +29,12 @@ export class CommandProcessor {
         }
     }
 
+    /**
+     *
+     * @param {TerminalCommandLogMessage} message
+     */
     createChildProcess(message) {
-        const childProcessClass = message.sftp ? SFTPWrapper : ChildProcessWrapper;
+        const childProcessClass = ChildProcessWrapper;
         this.childProcess = new childProcessClass(message.command, message.args, () => {
             if (this.listeners.onSpawnedCallback !== null) return this.listeners.onSpawnedCallback()
         });
@@ -52,9 +58,8 @@ export class CommandProcessor {
         this.childProcess.kill();
     }
 
-    changeChildToSFTP() {
-        this.childProcess = new SFTPWrapper()
-    }
+
+
 }
 
 

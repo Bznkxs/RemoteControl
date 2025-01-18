@@ -4,22 +4,22 @@ import {TextClass} from "./text_class.js";
 export class TerminalTextLogMessage {
     /**
      * @param {string} text
-     * @param {Date} time
+     * @param {Date?} time
      * @param {string|TextClass} textClass
      * @param isInput
      * @param password
      * @param ansiOutputStream
+     * @param otherArgs
      */
-    constructor({text, time, textClass, isInput = false, password = false, ansiOutputStream = null}) {
+    constructor({text, time = undefined, textClass = TextClass.CONTENT,
+                    isInput = false, password = false, ansiOutputStream = null, otherArgs=undefined}) {
+        this.otherArgs = otherArgs;
+        console.log("[TerminalTextLogMessage] constructor:", text.slice(0, 100), textClass, isInput, password, ansiOutputStream, time);
         this.text = text;
         this.ansiOutputStream = ansiOutputStream;
         this.time = time;
         this.textClass = new TextClass(textClass);
-        if (isInput || this.textClass.v === TextClass.INPUT.v) {
-            this.isInput = true;
-        } else {
-            this.isInput = false;
-        }
+        this.isInput = isInput || this.textClass.v === TextClass.INPUT.v;
         this.password = password;
     }
 
@@ -28,18 +28,22 @@ export class TerminalTextLogMessage {
      * @param {TextClass} textClass
      * @param isInput
      * @param password
+     * @param args
      */
-    static createMessageWithCurrentTime(text, textClass, isInput = false, password = false, kwargs = {}) {
+    static createMessageWithCurrentTime(text, textClass, isInput = false, password = false, args = {}) {
         if (this.allowedTextClasses.has(textClass.v)) {
-            return new this({text, time: new Date(), textClass, isInput, password, ansiOutputStream: kwargs.ansiOutputStream});
+            const ansiOutputStream = args? args.ansiOutputStream: undefined;
+            args.ansiOutputStream = undefined;
+            return new this({text, time: new Date(), textClass, isInput, password, ansiOutputStream, otherArgs: args});
         } else {
             throw new Error(`Text class ${textClass} is not allowed for this log`);
         }
     }
 
-    static createOutputMessageWithCurrentTime({text, end, args}, ansiOutputStream, endStream) {
+    static createOutputMessageWithCurrentTime({text, args}, ansiOutputStream, endStream) {
         console.log("[TerminalTextLogMessage] createOutputMessageWithCurrentTime:", text.slice(0, 100), args);
-        const message =  new this({text: text + (end || ""), time: new Date(), textClass: TextClass.CONTENT, ansiOutputStream, isInput: false, password: false});
+        const message =  new this({text: text, time: new Date(), textClass: TextClass.CONTENT, ansiOutputStream, isInput: false, password: false});
+        message.args = args;
         if (args) {
             if (args.pwd && args.pwd.envelope) {
                 args.pwd = args.pwd.getPwd();
@@ -65,7 +69,6 @@ export class TerminalTextLogMessage {
                         let separator = /[\t\n]+| {4,}/;
                         if (longListing) separator = /\n+/;
                         const lines = output.text.split(separator);
-                        const newLines = [];
                         output.actionArgs = [];
                         for (let j = 0; j < lines.length; j++) {
                             const line = lines[j];
@@ -99,7 +102,7 @@ export class TerminalTextLogMessage {
                             }
                             else {
                                 const outputStartsWithSpace = line.trimStart().length !== line.length;
-                                console.log(`[TerminalTextLogMessage] createOutputMessageWithCurrentTime: ${i} ${j} Judge`, parts, outputStartsWithSpace, lastOutputEndsWithSpace, newLines.length);
+                                console.log(`[TerminalTextLogMessage] createOutputMessageWithCurrentTime: ${i} ${j} Judge`, parts, outputStartsWithSpace, lastOutputEndsWithSpace, newOutputSequence.length > 0);
                                 if (parts.length < 3) {
 
                                     if (j === 0 && !outputStartsWithSpace && !lastOutputEndsWithSpace && newOutputSequence.length > 0) {
@@ -135,7 +138,6 @@ export class TerminalTextLogMessage {
                             lastOutputEndsWithSpace = line.trimEnd().length !== line.length;
                         }
 
-                        // output.text = newLines.join("\n");
                     }
                 }
                 message.ansiOutputStream.outputSequence = newOutputSequence;
@@ -185,7 +187,8 @@ export class TerminalTextLogMessage {
             textClass: this.textClass.v,
             isInput: this.isInput,
             password: this.password,
-            ansiOutputStream: this.ansiOutputStream
+            ansiOutputStream: this.ansiOutputStream,
+            otherArgs: this.otherArgs
         };
     }
 }

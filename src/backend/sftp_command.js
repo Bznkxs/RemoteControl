@@ -1,8 +1,3 @@
-import path from "path";
-import fs from "fs";
-import {ChildProcessOutput} from "./child_process_output.js";
-import {ListenForEndOfSessionCommand} from "./corresponding_output_manager.js";
-
 export class Command {
     /**
      *
@@ -28,25 +23,56 @@ export class Command {
         console.log("[Command] getArgList: ", JSON.stringify(text))
         return text.trim().split(/\s+/);
     }
+
+    takesInput() {
+        return true;
+    }
+
+    /**
+     *
+     * @returns {RegExp|string|null|function}
+     */
     commandPrompt() {
         console.log("[Command] commandPrompt: default")
-        return (rawText) => {
-            const lines = rawText.trimEnd().split(/[\n\r]/);
-            let lastLine = lines.pop();
-            while (lastLine === "") {
-                lastLine = lines.pop();
-            }
-            let parts = lastLine.split(/\x1B\[\d*;?1H/g);
-            let partAfterCarriageANSI = parts.pop();
-            let indexBefore = (lines.length === 0 ? 0 : lines.join("\n").length + 1) + (lastLine.length - partAfterCarriageANSI.length);
-            const matches = /.*[>$#](?=([\r\n]|$| \x1B]0;.*$))/gs.exec(partAfterCarriageANSI);
+        return /^.*[>$#]\s*$/;
+    };
+
+    outputTransform(outputAccumulation) {
+        return outputAccumulation.ansiOutputStream.plainText;
+
+    }
+
+    testCommandPrompt(outputAccumulation) {
+        const prompt = this.commandPrompt();
+        if (prompt === null) {
+            return null;
+        }
+        const transformedOutput = this.outputTransform(outputAccumulation);
+        console.log(`[Command] testCommandPrompt: \`${transformedOutput}\` against \`${prompt}\``)
+        if (prompt instanceof RegExp) {
+            const lines = transformedOutput.trimEnd().split('\n');
+            const lastLine = lines.pop();
+            const matches = lastLine.match(prompt);
             if (matches) {
-                matches.index += indexBefore;
+                matches.index += (lines.length === 0 ? 0 : lines.join("\n").length + 1);
             }
-        return matches;
-    }  };
+            return matches;
+        }
+        if (prompt instanceof Function) {
+            return prompt(transformedOutput);
+        }
+        if (prompt instanceof String) {
+            const matches = transformedOutput.trimEnd().endsWith(prompt);
+            if (matches) {
+                return {index: transformedOutput.trimEnd().length - prompt.length};
+            }
+            return null;
+        }
+
+    }
+
     finish(output, event) {
-        console.log(`[Command] finish: ${output.text}`);
+        console.log(`[Command] finish: ${output}, ${event}`);
         this.defaultFinishFunction(output, event);
     }
 
@@ -104,6 +130,11 @@ export class pwdCommand extends SFTPCommand {
 }
 
 export class ContextCommand extends Command {
+    context = {
+        commandText: "",
+        commandType: "",
+        contextListeners: []
+    }
     constructor(text, callback, ...args) {
         super(text, callback, ...args);
         this.context = {
@@ -120,6 +151,11 @@ export class ContextCommand extends Command {
 }
 
 export class ExitContextCommand extends SFTPCommand {
+    context = {
+        commandText: "",
+        commandType: "",
+        contextListeners: []
+    }
     constructor(text, callback, ...args) {
         super(text, callback, ...args);
         this.context = {
@@ -182,13 +218,19 @@ export class DefineCommand extends Command {  // DefineCommand is a command that
     /**
      *
      * @param text
-     * @param {function(text)} callback
+     * @param {function(text)} callback The callback is called when the defined command is realized: it sends the text to child process.
      * @param args
      */
     constructor(text, callback, ...args) {
         super(text, callback, false, ...args);
     }
 
+
+    /**
+     * For DefineCommand, the defaultCommand is a synthesized Command object. The text is what needs
+     * to be realized; the callback sends the text to child process.
+     * @returns {Command}
+     */
     defaultCommand() {
         return new Command(this.args.join(" ") + this.eol, this.callback, undefined, ...this.otherArgs);
     }
@@ -198,8 +240,16 @@ export class DefineCommand extends Command {  // DefineCommand is a command that
     }
 }
 
-
-export const createCommandFromText = (text, callback, log, inSFTP=true, ...otherArgs) => {
+/**
+ * Create a command from a text string. Supports SFTP commands.
+ * @param {string} text  If a .exe extension is found, it is removed. If the first word is "define", a DefineCommand is created.
+ * @param {function?} callback For DefineCommand, the callback sends the text to child process. For other commands, the callback is called when the command is finished.
+ * @param {boolean?} log  Ignored if DefineCommand is created.
+ * @param {boolean?} inSFTP  Ignored if DefineCommand is created.
+ * @param {object?} otherArgs
+ * @returns {Command}
+ */
+export const createCommandFromText = (text, callback, log=undefined, inSFTP=undefined, ...otherArgs) => {
     const argList = Command.getArgList(text);
     if (argList.length === 0) {
         throw new Error(`[createCommandFromText] No command found in text: ${text}`);
@@ -208,7 +258,7 @@ export const createCommandFromText = (text, callback, log, inSFTP=true, ...other
         argList[0] = argList[0].slice(0, -4);
     }
     if (argList[0] === "define") {
-        return new DefineCommand(text, callback, log, ...otherArgs);
+        return new DefineCommand(text, callback, ...otherArgs);
     }
     if (inSFTP) {
         switch (argList[0]) {

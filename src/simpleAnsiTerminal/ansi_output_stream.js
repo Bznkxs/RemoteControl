@@ -29,11 +29,14 @@ export class AnsiOutputStream {
      * @returns {AnsiOutputStream}
      */
     join(other) {
+        console.log("[AnsiOutputStream] join: ", JSON.stringify(this), JSON.stringify(other))
         if (other.newStartIndex !== 0 && this.newStartIndex < this.outputSequence.length) {
             throw new Error("If this.newStartIndex < this.outputSequence.length, then other.newStartIndex must be 0");
         }
-        return new AnsiOutputStream(this.outputSequence + other.outputSequence,
+        const ret = new AnsiOutputStream(this.outputSequence.concat(other.outputSequence),
             other.newStartIndex + Math.min(this.newStartIndex, this.outputSequence.length), this.previousEndsWithNewLine, other.endsWithNewLine);
+        console.log("[AnsiOutputStream] joined: ", JSON.stringify(ret))
+        return ret;
     }
 
     prefixEndsWithNewLine(upperIndex) {
@@ -48,10 +51,25 @@ export class AnsiOutputStream {
         return this.previousEndsWithNewLine;
     }
 
-    plainText() {
-        return this.outputSequence.map((output) => output.text || '').join("");
+    get plainText() {
+        if (this._plainText === undefined) {
+            this._positions = [];
+            let currentLength = 0;
+            this._plainText = this.outputSequence.map((output) => {
+                const ret = output.text || '';
+                this._positions.push(currentLength);
+                currentLength += ret.length;
+                return ret;
+            }).join("");
+        }
+        return this._plainText;
     }
 
+    /**
+     * Split the output stream by text index.
+     * @param index
+     * @returns {AnsiOutputStream[]}
+     */
     splitByIndex(index) {
         if (index === 0) return [AnsiOutputStream.empty(), this];
         let currentLength = 0;
